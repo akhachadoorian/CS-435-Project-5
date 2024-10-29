@@ -2,7 +2,9 @@
     CS 435
     Project 4
     Alex Khachadoorian
-    FIXME: description
+    This program draws a c shaped room with floors and walls. 
+    There is a spotlight that can be adjusted to see the lighting effects on the room.
+    The viewer can also move to different locations around the room to see the different effects better.
 -->
 
 <!DOCTYPE html>
@@ -19,66 +21,71 @@
         <script id="vertex-shader" type="x-shader/x-vertex">
             #version 300 es
 
-            in  vec4 aPosition;
-            in  vec3 aNormal;
-            out vec4 vColor;
+            in vec4 aPosition;
+            in vec4 aNormal;
+            out vec3 N, L, E;
 
-            uniform vec4 uAmbientProduct, uDiffuseProduct, uSpecularProduct;
             uniform mat4 uModelViewMatrix;
             uniform mat4 uProjectionMatrix;
             uniform vec4 uLightPosition;
-            uniform float uShininess;
+            uniform mat3 uNormalMatrix;
 
-            void main()
-            {
-                vec3 pos = -(uModelViewMatrix * aPosition).xyz;
+            uniform vec3 eyeWorldPosition;
 
-                //fixed light postion
-
-                vec3 light = uLightPosition.xyz;
-                vec3 L = normalize(light - pos);
-
-
-                vec3 E = normalize(-pos);
-                vec3 H = normalize(L + E);
-
-                vec4 NN = vec4(aNormal,0);
-
-                // Transform vertex normal into eye coordinates
-
-                vec3 N = normalize((uModelViewMatrix*NN).xyz);
-
-                // Compute terms in the illumination equation
-                vec4 ambient = uAmbientProduct;
-
-                float Kd = max(dot(L, N), 0.0);
-                vec4  diffuse = Kd*uDiffuseProduct;
-
-                float Ks = pow( max(dot(N, H), 0.0), uShininess );
-                vec4  specular = Ks * uSpecularProduct;
-
-                if( dot(L, N) < 0.0 ) {
-                specular = vec4(0.0, 0.0, 0.0, 1.0);
+            void main() {
+                if(uLightPosition.w == 0.0) {
+                    L = uLightPosition.xyz; 
+                } else {
+                    L = (uLightPosition.xyz - aPosition.xyz); 
                 }
+                
+                E = -(uModelViewMatrix * aPosition).xyz;
+                N = aNormal.xyz;
 
-                gl_Position = uProjectionMatrix * uModelViewMatrix *aPosition;
-                vColor = ambient + diffuse +specular;
-
-                vColor.a = 1.0;
+                gl_Position = uProjectionMatrix * uModelViewMatrix * aPosition;
             }
             </script>
 
         <!--Fragment Shader Script-->
         <script id="fragment-shader" type="x-shader/x-fragment">
             #version 300 es
-            
+
             precision mediump float;
-            
-            in vec4 vColor;
+
+            uniform vec4 lightPosition;
+            uniform vec3 lightDirection;
+            uniform float cutoffAngle;
+
+            uniform vec4 uAmbientProduct;
+            uniform vec4 uDiffuseProduct;
+            uniform vec4 uSpecularProduct;
+            uniform float uShininess;
+
+            in vec3 N, L, E;
             out vec4 fColor;
-            
+
             void main() {
-                fColor = vColor;
+                vec3 nN = normalize(N);
+                vec3 nL = normalize(L);
+                vec3 nE = normalize(E);
+
+                vec3 H = normalize( nL + nE );
+                vec4 ambient = uAmbientProduct;
+
+                float Kd = max( dot(nL, nN), 0.0 );
+                vec4  diffuse = Kd * uDiffuseProduct;
+
+                float Ks = pow( max(dot(nN, H), 0.0), uShininess );
+                vec4  specular = Ks * uSpecularProduct;
+
+                if (dot(nL, normalize(-lightDirection)) >= cutoffAngle) {
+                    fColor = ambient + diffuse + specular;
+                    fColor.a = 1.0;
+                }
+                else {
+                    fColor = ambient;
+                    fColor.a = 1.0;
+                }
             }
             
             </script>
@@ -98,11 +105,7 @@
                 Oops ... your browser doesn't support the HTML5 canvas element
                 </canvas>
             </div>
-            <button id = "ButtonX">Rotate X</button>
-            <button id = "ButtonY">Rotate Y</button>
-            <button id = "ButtonZ">Rotate Z</button>
-            <button id = "ButtonT">Toggle Rotation</button>
-            <!-- <div>
+            <div>
                 <table class="lighting">
                     <thead>
                         <tr class="header">
@@ -168,13 +171,14 @@
                                     <option value="C">C</option>
                                     <option value="D">D</option>
                                     <option value="E">E</option>
+                                    <option value="F">F</option>
                                 </select>
                             </td>
                         </tr>
                     </tbody>
                 </table>
                 
-            </div> -->
+            </div>
         </div>
     </body>
 </html>

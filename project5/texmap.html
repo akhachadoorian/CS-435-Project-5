@@ -1,0 +1,182 @@
+<!--
+    CS 435
+    Project 5
+    Alex Khachadoorian
+    FIXME: description
+-->
+
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta http-equiv="Content-Type" content="text/html;charset=utf-8" >
+        <title>
+            CS 435 
+            Project #5
+            Alex Khachadoorian
+        </title>
+
+        <!--Vertex Shader Script-->
+        <script id="vertex-shader" type="x-shader/x-vertex">
+            #version 300 es
+            
+            in vec4 aPosition;
+            in vec4 aColor;
+            in vec2 aTexCoord;
+            
+            out vec4 vColor;
+            out vec2 vTexCoord;
+            
+            uniform vec3 uTheta;
+            
+            void main()
+            {
+                // Compute the sines and cosines of theta for each of
+                //   the three axes in one computation.
+                vec3 angles = radians(uTheta);
+                vec3 c = cos(angles);
+                vec3 s = sin(angles);
+            
+                // Remeber: thse matrices are column-major
+                mat4 rx = mat4(1.0,  0.0,  0.0, 0.0,
+                        0.0,  c.x,  s.x, 0.0,
+                        0.0, -s.x,  c.x, 0.0,
+                        0.0,  0.0,  0.0, 1.0);
+            
+                mat4 ry = mat4(c.y, 0.0, -s.y, 0.0,
+                        0.0, 1.0,  0.0, 0.0,
+                        s.y, 0.0,  c.y, 0.0,
+                        0.0, 0.0,  0.0, 1.0);
+            
+                mat4 rz = mat4(c.z, s.z, 0.0, 0.0,
+                        -s.z,  c.z, 0.0, 0.0,
+                        0.0,  0.0, 1.0, 0.0,
+                        0.0,  0.0, 0.0, 1.0);
+            
+                vColor = aColor;
+                vTexCoord = aTexCoord;
+                gl_Position = rz * ry * rx * aPosition;
+                gl_Position.z = -gl_Position.z;
+            }
+        </script>
+
+        <!--Fragment Shader Script-->
+        <script id="fragment-shader" type="x-shader/x-fragment">
+            #version 300 es
+            
+            precision mediump float;
+            
+            in vec4 vColor;
+            in vec2 vTexCoord;
+            
+            out vec4 fColor;
+            
+            uniform sampler2D uTextureMap;
+            
+            void
+            main()
+            {
+                //fColor = vColor * texture(uTextureMap, vTexCoord);
+                fColor = texture(uTextureMap, vTexCoord);
+            }
+        </script>
+
+        <!--Other Additional Scripts-->
+        <script type="text/javascript" src="../Common/initShaders.js"></script>
+        <script type="text/javascript" src="../Common/MVnew.js"></script>
+
+        <!--My Javascript-->
+        <script type="text/javascript" src="spotlight.js"></script>
+    </head>
+
+    <body>
+        <div class = "box">
+            <div>
+                <canvas id="gl-canvas" width="900" height="900">
+                Oops ... your browser doesn't support the HTML5 canvas element
+                </canvas>
+            </div>
+            <div>
+                <table class="tv">
+                    <thead>
+                        <tr class="header">
+                            <th colspan="3">TV</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr style="text-align: center">
+                            <td>Power</td>
+                            <td>
+                                <button id="power-on">On</button>
+                            </td>
+                            <td>
+                                <button id="power-off">Off</button>
+                            </td>
+                        </tr>
+                        <tr style="text-align: center">
+                            <td>Pause / Play</td>
+                            <td>
+                                <button id="pause">Pause</button>
+                            </td>
+                            <td>
+                                <button id="play">Play</button>
+                            </td>
+                        </tr>
+                        <tr style="text-align: center">
+                            <td>Prev / Next</td>
+                            <td>
+                                <button id="prev">Prev</button>
+                            </td>
+                            <td>
+                                <button id="next">Next</button>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </body>
+</html>
+
+<style>
+    .box {
+        display: flex;
+        gap: 20px;
+        align-items: center;
+    }
+
+    table {
+        border: 2px solid black;
+        margin-bottom: 30px;
+
+        tr.header {
+            background-color: black;
+            color: white;
+            padding: 0;
+            font-size: 24px;
+        }
+
+        td {
+            padding: 10px;
+            border: 2px solid black;
+        }
+    }
+
+    table.rotational-menu {
+        min-width: 242px;
+
+        td {
+            display: flex;
+            justify-content: center;
+        }
+    }
+
+    select {
+        height: 20px;
+        width: 100%;
+    }
+
+    button {
+        width: 100%;
+    }
+
+</style>
