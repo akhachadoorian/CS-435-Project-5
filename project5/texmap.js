@@ -3,6 +3,7 @@
     Project 5
     Alex Khachadoorian
     FIXME: description
+    py -m http.server
 */
 
 "use strict"
@@ -14,6 +15,7 @@
 var canvas; 
 var gl;
 var numPositions = 0; 
+var numWallPositions; //FIXME:
 var program;
 
 ///////////////////////////////////
@@ -184,6 +186,7 @@ function Walls() {
 
     // GET THE NUMBER OF POSITIONS IN THE BUFFER THE SHAPE HAS
     this.getNumPositions = function() {
+        console.log("numPositions: " + this.numPositions)
         return this.numPositions;
     }
 
@@ -209,13 +212,13 @@ function Walls() {
     }
 
     this.drawWalls = function() {
-        console.log(this.texture)
+        // console.log(this.texture);
 
         for (var i = 0; i < this.positions.length; i++) {
             vPositions.push(this.positions[i]);
             vColors.push(this.color);
             vTexCoords.push(this.texture[i]);
-            numPositions++;
+            this.numPositions++;
         }
     }
 }
@@ -260,7 +263,9 @@ window.onload = function initialize() {
     var w = new Walls();
     w.init();
     w.drawWalls();
-    numPositions = numPositions + w.getNumPositions();
+    numWallPositions = w.numPositions();
+    console.log(numWallPositions);
+    // numPositions = numPositions + w.getNumPositions();
     // console.log("numPositions: " + numPositions);
     // console.log("vPositions:", vPositions);
     // console.log("vTexCoord:", vTexCoords);
@@ -312,14 +317,24 @@ window.onload = function initialize() {
     gl.vertexAttribPointer(texCoordLoc, 2, gl.FLOAT, false, 0, 0);
     gl.enableVertexAttribArray(texCoordLoc);
 
-    var image = document.getElementById("texImage");
-    configureTexture(image);
+    
 
 
 
     // GET UNIFORM VARIABLE LOCATIONS
     modelViewMatrixLoc = gl.getUniformLocation(program, "uModelViewMatrix");
     projectionMatrixLoc = gl.getUniformLocation(program, "uProjectionMatrix");
+    // CALCULATE MATRIXES
+    modelViewMatrix = lookAt(eye, at , up);
+    // console.log(modelViewMatrix)
+    projectionMatrix = ortho(theLeft, theRight, theBottom, theTop, near, far);
+
+    ///////////////////////////////////
+    /*      SET SHADER VARIABLES     */
+    ///////////////////////////////////
+
+    gl.uniformMatrix4fv(modelViewMatrixLoc, false, flatten(modelViewMatrix) ); // set modelViewMatrix
+    gl.uniformMatrix4fv(projectionMatrixLoc, false, flatten(projectionMatrix)); // set projectionMatrix
 
     ///////////////////////////////////
 
@@ -334,22 +349,13 @@ var render = function() {
     // CLEAR BITS
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
-    // CALCULATE MATRIXES
-    modelViewMatrix = lookAt(eye, at , up);
-    // console.log(modelViewMatrix)
-    projectionMatrix = ortho(theLeft, theRight, theBottom, theTop, near, far);
+    var image = document.getElementById("texImage1");
+    configureTexture(image);
 
-    ///////////////////////////////////
-    /*      SET SHADER VARIABLES     */
-    ///////////////////////////////////
-
-    gl.uniformMatrix4fv(modelViewMatrixLoc, false, flatten(modelViewMatrix) ); // set modelViewMatrix
-    gl.uniformMatrix4fv(projectionMatrixLoc, false, flatten(projectionMatrix)); // set projectionMatrix
-
+    gl.drawElements(gl.TRIANGLES, 0, numWallPositions);
 
     // DRAW FLOOR AND WALLS
     // gl.drawArrays( gl.TRIANGLES, 0, numPositions);
-    gl.drawArrays(gl.TRIANGLES, 0, numPositions); // Should be set to the number of vertices in vPositions
 
 
 
