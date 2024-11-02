@@ -160,16 +160,16 @@ function Walls() {
     this.indexes = [
         // OUTSIDE WALLS
         [0, 1, 2, 0, 2, 3], // back wall
-        [3, 2, 4, 2, 4, 5], // right wall
+        [4, 5, 2, 4, 2, 3], // right wall
         [0, 1, 6, 0, 6, 7], // left wall
 
         // INSIDE WALLS
         [8, 9, 10, 8, 10, 11], // back wall
-        [11, 10, 12, 10, 12, 13], // right wall
+        [12, 13, 10, 12, 10, 11], // right wall
         [8, 9, 14, 8, 14, 15], // left  wall
 
         // FRONT CONNECTION
-        [15, 14, 6, 15, 6, 7], // left front wall
+        [7, 6, 14, 7, 14, 15], // left front wall
         [4, 5, 13, 4, 13, 12], // right front wall
 
         // TOP CONNECTIONS
@@ -280,7 +280,7 @@ var tYMax = 0.0;
 var tYMin = -2.0;
 var tZMin = -1.0;
 var tZMax = 1.0;
-var legWidth = 0.5;
+var legWidth = 0.2;
 
 var vertexesTable = [
     // TOP OF TABLE
@@ -314,8 +314,26 @@ var vertexesTable = [
     vec4(tXMin + legWidth, tYMin, tZMin + legWidth, 1.0), // 19
     vec4(tXMin, tYMin, tZMin + legWidth, 1.0), // 20
     vec4(tXMin, tYMin, tZMin, 1.0), // 21
-    
 
+    // FRONT LEFT LEG
+    vec4(tXMin, tYMax - diff, tZMax - legWidth, 1.0), // 22
+    vec4(tXMin + legWidth, tYMax - diff, tZMax - legWidth, 1.0), // 23
+    vec4(tXMin + legWidth, tYMax - diff, tZMax, 1.0), // 24
+
+    vec4(tXMin, tYMin, tZMax, 1.0), // 25
+    vec4(tXMin, tYMin, tZMax - legWidth, 1.0), // 26
+    vec4(tXMin + legWidth, tYMin, tZMax - legWidth, 1.0), // 27
+    vec4(tXMin + legWidth, tYMin, tZMax, 1.0), // 28
+    
+    // FRONT LEFT LEG
+    vec4(tXMax, tYMax - diff, tZMax - legWidth, 1.0), // 29
+    vec4(tXMax - legWidth, tYMax - diff, tZMax - legWidth, 1.0), // 30
+    vec4(tXMax - legWidth, tYMax - diff, tZMax, 1.0), // 31
+
+    vec4(tXMax, tYMin, tZMax, 1.0), // 32
+    vec4(tXMax, tYMin, tZMax - legWidth, 1.0), // 33
+    vec4(tXMax - legWidth, tYMin, tZMax - legWidth, 1.0), // 34
+    vec4(tXMax - legWidth, tYMin, tZMax, 1.0), // 35
 ];
 
 function Table() {
@@ -343,14 +361,22 @@ function Table() {
         [14, 10, 6, 14, 6, 11], // right side
 
         // BACK LEFT LEG
-        [21, 5, 15, 21, 15, 18], // 
-        // [], // 
-        // [], // 
-        // [], // 
+        [21, 5, 15, 21, 15, 18], // back side
+        [21, 5, 17, 21, 17, 20], // left side
+        [20, 17, 16, 20, 16, 19], // front side
+        [19, 16, 15, 19, 15, 18], // right side
 
         // FRONT LEFT LEG
+        [27, 23, 22, 27, 22, 26],
+        [26, 22, 4, 26, 4, 25],
+        [25, 4, 24, 25, 24, 28],
+        [28, 24, 23, 28, 23, 27],
 
         // FRONT RIGHT LEG
+        [33, 29, 30, 33, 30, 34],
+        [34, 30, 31, 34, 31, 35],
+        [35, 31, 7, 35, 7, 32],
+        [32, 7, 29, 32, 29, 33],
     ];
 
     this.texIndexes = [0, 1, 2, 0, 2, 3];
