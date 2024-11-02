@@ -57,7 +57,7 @@ var eyePositions = [
 
 var eyeIndex = 0; // holds the index for the camera position
 
-var eye = eyePositions[5]; // holds the camera position for rendering FIXME:
+var eye = eyePositions[3]; // holds the camera position for rendering FIXME:
 var at = vec3(0.0, 0.0, 0.0); // holds camera aim -> at origin
 var up = vec3(0.0, 1.0, 0.0); // holds up vector -> positive y direction
 ///////////////////////////////////
@@ -121,25 +121,29 @@ var fBottomY;
 
 
 var vertexes = [
-    // OUTER WALL
     vec4(wMinX, wMinY, wMinZ, 1.0), // 0
     vec4(wMinX, wMaxY, wMinZ, 1.0), // 1
     vec4(wMaxX, wMaxY, wMinZ, 1.0), // 2
     vec4(wMaxX, wMinY, wMinZ, 1.0), // 3
+
     vec4(wMaxX, wMinY, wMaxZ, 1.0), // 4
     vec4(wMaxX, wMaxY, wMaxZ, 1.0), // 5
-    vec4(wMinX, wMaxY, wMaxZ, 1.0), // 6
-    vec4(wMinX, wMinY, wMaxZ, 1.0), // 7
 
-    // INNER WALL
-    vec4(wMinX + wallDiff, wMinY, wMinZ + wallDiff, 1.0), // 8
-    vec4(wMinX + wallDiff, wMaxY, wMinZ + wallDiff, 1.0), // 9
-    vec4(wMaxX - wallDiff, wMaxY, wMinZ + wallDiff, 1.0), // 10
-    vec4(wMaxX - wallDiff, wMinY, wMinZ + wallDiff, 1.0), // 11
-    vec4(wMaxX - wallDiff, wMinY, wMaxZ, 1.0), // 12
-    vec4(wMaxX - wallDiff, wMaxY, wMaxZ, 1.0), // 13
-    vec4(wMinX + wallDiff, wMaxY, wMaxZ, 1.0), // 14
-    vec4(wMinX + wallDiff, wMinY, wMaxZ, 1.0), // 15
+    vec4(wMinX, wMinY, wMaxZ, 1.0), // 6
+    vec4(wMinX, wMaxY, wMaxZ, 1.0), // 7
+]
+
+var insideWallVertexes = [
+    vec4(wMinX + wallDiff, wMinY, wMinZ + wallDiff, 1.0), // 0
+    vec4(wMinX + wallDiff, wMaxY, wMinZ + wallDiff, 1.0), // 1
+    vec4(wMaxX - wallDiff, wMaxY, wMinZ + wallDiff, 1.0), // 2
+    vec4(wMaxX - wallDiff, wMinY, wMinZ + wallDiff, 1.0), // 3
+
+    vec4(wMaxX - wallDiff, wMinY, wMaxZ, 1.0), // 4
+    vec4(wMaxX - wallDiff, wMaxY, wMaxZ, 1.0), // 5
+
+    vec4(wMinX + wallDiff, wMinY, wMaxZ, 1.0), // 6
+    vec4(wMinX + wallDiff, wMaxY, wMaxZ, 1.0), // 7
 ]
 
 
@@ -153,30 +157,18 @@ function Walls() {
     this.color = vec4(1.0, 0.0, 0.0, 1.0);
     this.texture = [];
 
-    this.outsideIndexes = [
+    this.indexes = [
         [0, 1, 2, 0, 2, 3], // back wall
         [3, 2, 4, 2, 4, 5],
-        [0, 1, 6, 0, 6, 7],
-
-        [8, 9, 10, 8, 10, 11],
-        [11, 10, 12, 10, 12, 13],
-        [8, 9, 14, 8, 14, 15],
-
-        [15, 14, 6, 15, 6, 7],
-        [4, 5, 13, 4, 13, 12],
-
-        [9, 1, 6, 9, 6, 14],
-        [2, 10, 13, 2, 13, 5],
-        [10, 2,  1, 10, 1, 9]
+        [0, 1, 7, 0, 7, 6]
     ]
 
-    // this.innerIndexes = [
-    //     [0, 1, 2, 0, 2, 3],
-    //     [3, 2, 4, 2, 4, 5],
-    //     [0, 1, 6, 0, 6, 7]
-    // ];
+    this.innerIndexes = [
+        [0, 1, 2, 0, 2, 3], // back wall
+        [3, 2, 4, 2, 4, 5],
+        [0, 1, 7, 0, 7, 6]
+    ];
     
-
 
     ///////////////////////////////////
     /*      GETTERS & SETTERS        */
@@ -193,19 +185,19 @@ function Walls() {
 
     // INITIALIZATION FUNCTION
     this.init = function() {
-        for (var i = 0; i < this.outsideIndexes.length; i++) {
-            for (var j = 0; j < this.outsideIndexes[i].length; j++) {
-                this.positions.push(vertexes[this.outsideIndexes[i][j]]);
-                this.texture.push(texCoord[this.outsideIndexes[i][j] % 4]);
+        for (var i = 0; i < this.indexes.length; i++) {
+            for (var j = 0; j < this.indexes[i].length; j++) {
+                this.positions.push(vertexes[this.indexes[i][j]]);
+                this.texture.push(texCoord[this.indexes[i][j] % 4]);
             }
         }
 
-        // for (var i = 0; i < this.innerIndexes.length; i++) {
-        //     for (var j = 0; j < this.innerIndexes[i].length; j++) {
-        //         this.positions.push(insideWallVertexes[this.innerIndexes[i][j]]);
-        //         this.texture.push(texCoord[this.innerIndexes[i][j] % 4]);
-        //     }
-        // }
+        for (var i = 0; i < this.innerIndexes.length; i++) {
+            for (var j = 0; j < this.innerIndexes[i].length; j++) {
+                this.positions.push(insideWallVertexes[this.innerIndexes[i][j]]);
+                this.texture.push(texCoord[this.innerIndexes[i][j] % 4]);
+            }
+        }
     }
 
     this.drawWalls = function() {
@@ -261,9 +253,9 @@ window.onload = function initialize() {
     w.init();
     w.drawWalls();
     numPositions = numPositions + w.getNumPositions();
-    // console.log("numPositions: " + numPositions);
-    // console.log("vPositions:", vPositions);
-    // console.log("vTexCoord:", vTexCoords);
+    console.log("numPositions: " + numPositions);
+    console.log("vPositions:", vPositions);
+    console.log("vTexCoord:", vTexCoords);
 
     // SET UP PROGRAM
     program = initShaders(gl, "vertex-shader", "fragment-shader");
