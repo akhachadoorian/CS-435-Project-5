@@ -23,7 +23,8 @@ var program;
 var vPositions = []; // holds all the vertex positions
 var vColors = [];
 var vTexCoords = [];
-var vBuffer; // vertex buffer
+var vTexIDs = [];
+// var vBuffer; // vertex buffer
 // var normals = []; // holds all the normals for the vertexes
 ///////////////////////////////////
 
@@ -49,17 +50,18 @@ var projectionMatrix; // holds the projection matrix
 ///////////////////////////////////
 // CAMERA VARIABLES
 var eyePositions = [
-    vec3(-3.0, 3.0, -3.0), // A
-    vec3(0.0, 3.0, -3.0),  // B
-    vec3(3.0, 3.0, -3.0),  // C
+    vec3(0.0, 1.0, 3.0), // lower y value
+    vec3(0.0, -0.1, 3.0),  // B
+    vec3(0.0, -2.0, 3.0),  // underside
     vec3(-3.0, 3.0, 3.0),  // look at right wall
     vec3(0.0, 3.0, 3.0),   // at origins 
     vec3(3.0, 3.0, 3.0),   // look at left wall
+    vec3(3.0, 2.0, 3.0),   // look at left wall
 ]; // holds all possible camera positions
 
 var eyeIndex = 0; // holds the index for the camera position
 
-var eye = eyePositions[5]; // holds the camera position for rendering FIXME:
+var eye = eyePositions[6]; // holds the camera position for rendering FIXME:
 var at = vec3(0.0, 0.0, 0.0); // holds camera aim -> at origin
 var up = vec3(0.0, 1.0, 0.0); // holds up vector -> positive y direction
 ///////////////////////////////////
@@ -81,21 +83,18 @@ var texCoord = [
 /*       GLOBAL FUNCTIONS        */
 ///////////////////////////////////
 
-// FUNCTION TO CONVERT DEGREES TO RADIANS
-// angle -> angle in degrees
-function degreeToRadians(angle) {
-    return angle * (Math.PI / 180);
-}
+function configureTexture( image, uniformVarName, textureUnit, uniformLoc ) {
+    // console.log("uniformVarName: " + uniformVarName);
 
-function configureTexture( image ) {
     texture = gl.createTexture();
+    gl.activeTexture(textureUnit); 
     gl.bindTexture(gl.TEXTURE_2D, texture);
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, image);
     gl.generateMipmap(gl.TEXTURE_2D);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST_MIPMAP_LINEAR);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
 
-    gl.uniform1i(gl.getUniformLocation(program, "uTexMap"), 0);
+    gl.uniform1i(gl.getUniformLocation(program, uniformVarName), uniformLoc);
 }
 
 ///////////////////////////////////
@@ -109,39 +108,39 @@ var texCoord = [
 ];
 
 //
-var wMaxX = 2.0;
-var wMinX = -2.0;
-var wMaxY = 2.0;
-var wMinY = -2.0;
-var wMaxZ = 2.0;
-var wMinZ = -2.0;
-var wallDiff = 0.2;
-
-var fTopY;
-var fBottomY;
-
-
+var wXMax = 2.0;
+var wXMin = -2.0;
+var wYMax = 2.0;
+var wYMin = -2.0;
+var wZMax = 2.0;
+var wZMin = -2.0;
+var diff = 0.2;
 
 var vertexes = [
     // OUTER WALL
-    vec4(wMinX, wMinY, wMinZ, 1.0), // 0
-    vec4(wMinX, wMaxY, wMinZ, 1.0), // 1
-    vec4(wMaxX, wMaxY, wMinZ, 1.0), // 2
-    vec4(wMaxX, wMinY, wMinZ, 1.0), // 3
-    vec4(wMaxX, wMinY, wMaxZ, 1.0), // 4
-    vec4(wMaxX, wMaxY, wMaxZ, 1.0), // 5
-    vec4(wMinX, wMaxY, wMaxZ, 1.0), // 6
-    vec4(wMinX, wMinY, wMaxZ, 1.0), // 7
+    vec4(wXMin, wYMin, wZMin, 1.0), // 0
+    vec4(wXMin, wYMax, wZMin, 1.0), // 1
+    vec4(wXMax, wYMax, wZMin, 1.0), // 2
+    vec4(wXMax, wYMin, wZMin, 1.0), // 3
+    vec4(wXMax, wYMin, wZMax, 1.0), // 4
+    vec4(wXMax, wYMax, wZMax, 1.0), // 5
+    vec4(wXMin, wYMax, wZMax, 1.0), // 6
+    vec4(wXMin, wYMin, wZMax, 1.0), // 7
 
     // INNER WALL
-    vec4(wMinX + wallDiff, wMinY, wMinZ + wallDiff, 1.0), // 8
-    vec4(wMinX + wallDiff, wMaxY, wMinZ + wallDiff, 1.0), // 9
-    vec4(wMaxX - wallDiff, wMaxY, wMinZ + wallDiff, 1.0), // 10
-    vec4(wMaxX - wallDiff, wMinY, wMinZ + wallDiff, 1.0), // 11
-    vec4(wMaxX - wallDiff, wMinY, wMaxZ, 1.0), // 12
-    vec4(wMaxX - wallDiff, wMaxY, wMaxZ, 1.0), // 13
-    vec4(wMinX + wallDiff, wMaxY, wMaxZ, 1.0), // 14
-    vec4(wMinX + wallDiff, wMinY, wMaxZ, 1.0), // 15
+    vec4(wXMin + diff, wYMin, wZMin + diff, 1.0), // 8
+    vec4(wXMin + diff, wYMax, wZMin + diff, 1.0), // 9
+    vec4(wXMax - diff, wYMax, wZMin + diff, 1.0), // 10
+    vec4(wXMax - diff, wYMin, wZMin + diff, 1.0), // 11
+    vec4(wXMax - diff, wYMin, wZMax, 1.0), // 12
+    vec4(wXMax - diff, wYMax, wZMax, 1.0), // 13
+    vec4(wXMin + diff, wYMax, wZMax, 1.0), // 14
+    vec4(wXMin + diff, wYMin, wZMax, 1.0), // 15
+
+    vec4(wXMin, wYMin - diff, wZMin, 1.0), // 16
+    vec4(wXMax, wYMin - diff, wZMin, 1.0), // 17
+    vec4(wXMax, wYMin - diff, wZMax, 1.0), // 18
+    vec4(wXMin, wYMin - diff, wZMax, 1.0), // 19
 ]
 
 
@@ -152,33 +151,32 @@ function Walls() {
     ///////////////////////////////////
     this.numPositions = 0; // number of vertices added to the vPositions
     this.positions = []; // temporary array to hold the vertices
-    this.color = vec4(1.0, 0.0, 0.0, 1.0);
+    this.color = vec4(1.0, 0.0, 0.0, 1.0); // FIXME: REMOVE?
     this.texture = [];
+    this.texID = 0.0;
 
-    this.outsideIndexes = [
+    this.texIndexes = [0, 1, 2, 0, 2, 3];
+
+    this.indexes = [
+        // OUTSIDE WALLS
         [0, 1, 2, 0, 2, 3], // back wall
-        [3, 2, 4, 2, 4, 5],
-        [0, 1, 6, 0, 6, 7],
+        [3, 2, 4, 2, 4, 5], // right wall
+        [0, 1, 6, 0, 6, 7], // left wall
 
-        [8, 9, 10, 8, 10, 11],
-        [11, 10, 12, 10, 12, 13],
-        [8, 9, 14, 8, 14, 15],
+        // INSIDE WALLS
+        [8, 9, 10, 8, 10, 11], // back wall
+        [11, 10, 12, 10, 12, 13], // right wall
+        [8, 9, 14, 8, 14, 15], // left  wall
 
-        [15, 14, 6, 15, 6, 7],
-        [4, 5, 13, 4, 13, 12],
+        // FRONT CONNECTION
+        [15, 14, 6, 15, 6, 7], // left front wall
+        [4, 5, 13, 4, 13, 12], // right front wall
 
-        [9, 1, 6, 9, 6, 14],
-        [2, 10, 13, 2, 13, 5],
-        [10, 2,  1, 10, 1, 9]
-    ]
-
-    // this.innerIndexes = [
-    //     [0, 1, 2, 0, 2, 3],
-    //     [3, 2, 4, 2, 4, 5],
-    //     [0, 1, 6, 0, 6, 7]
-    // ];
-    
-
+        // TOP CONNECTIONS
+        [9, 1, 6, 9, 6, 14], // top left wall
+        [2, 10, 13, 2, 13, 5], // top right wall
+        [10, 2,  1, 10, 1, 9] // top back wall
+    ];
 
     ///////////////////////////////////
     /*      GETTERS & SETTERS        */
@@ -186,7 +184,7 @@ function Walls() {
 
     // GET THE NUMBER OF POSITIONS IN THE BUFFER THE SHAPE HAS
     this.getNumPositions = function() {
-        console.log("numPositions: " + this.numPositions)
+        // console.log("numPositions: " + this.numPositions)
         return this.numPositions;
     }
 
@@ -196,33 +194,203 @@ function Walls() {
 
     // INITIALIZATION FUNCTION
     this.init = function() {
-        for (var i = 0; i < this.outsideIndexes.length; i++) {
-            for (var j = 0; j < this.outsideIndexes[i].length; j++) {
-                this.positions.push(vertexes[this.outsideIndexes[i][j]]);
-                this.texture.push(texCoord[this.outsideIndexes[i][j] % 4]);
+        for (var i = 0; i < this.indexes.length; i++) {
+            for (var j = 0; j < this.indexes[i].length; j++) {
+                this.positions.push(vertexes[this.indexes[i][j]]);
+                this.texture.push(texCoord[this.texIndexes[j]]);
             }
         }
-
-        // for (var i = 0; i < this.innerIndexes.length; i++) {
-        //     for (var j = 0; j < this.innerIndexes[i].length; j++) {
-        //         this.positions.push(insideWallVertexes[this.innerIndexes[i][j]]);
-        //         this.texture.push(texCoord[this.innerIndexes[i][j] % 4]);
-        //     }
-        // }
     }
 
     this.drawWalls = function() {
-        // console.log(this.texture);
-
         for (var i = 0; i < this.positions.length; i++) {
             vPositions.push(this.positions[i]);
             vColors.push(this.color);
             vTexCoords.push(this.texture[i]);
             this.numPositions++;
+
+            let t = parseFloat(this.texID).toFixed(1);
+            vTexIDs.push(t);
         }
     }
 }
 
+function Floor() {
+    ///////////////////////////////////
+    /*     INSTANCE VARIABLES        */
+    ///////////////////////////////////
+    this.numPositions = 0; // number of vertices added to the vPositions
+    this.positions = []; // temporary array to hold the vertices
+    this.color = vec4(1.0, 0.0, 0.0, 1.0); // FIXME: REMOVE?
+    this.texture = [];
+    this.texID = 1.0;
+
+    this.indexes = [
+        [7, 3, 4, 7, 0, 3],
+        [19, 17, 18, 19, 16, 17],
+
+        [19, 4, 18, 19, 7, 4],
+    ];
+
+    this.texCIndex = [0, 2, 3, 0, 1, 2];
+
+    ///////////////////////////////////
+    /*      GETTERS & SETTERS        */
+    ///////////////////////////////////
+
+    // GET THE NUMBER OF POSITIONS IN THE BUFFER THE SHAPE HAS
+    this.getNumPositions = function() {
+        // console.log("numPositions: " + this.numPositions)
+        return this.numPositions;
+    }
+
+    ///////////////////////////////////
+    /*       OTHER FUNCTIONS         */
+    ///////////////////////////////////
+
+    // INITIALIZATION FUNCTION
+    this.init = function() {
+        for (var i = 0; i < this.indexes.length; i++) {
+            for (var j = 0; j < this.indexes[i].length; j++) {
+                this.positions.push(vertexes[this.indexes[i][j]]);
+                this.texture.push(texCoord[this.texCIndex[j]]);
+
+                // console.log("index: "+  this.indexes[i][j])
+                // console.log(texCoord[this.indexes[i][j] % 4]);
+            }
+        }
+    }
+
+    this.drawFloor = function() {
+        for (var i = 0; i < this.positions.length; i++) {
+            vPositions.push(this.positions[i]);
+            vColors.push(this.color);
+            vTexCoords.push(this.texture[i]);
+            this.numPositions++;
+
+            let t = parseFloat(this.texID).toFixed(1);
+            vTexIDs.push(t);
+        }
+    }
+}
+
+var tXMax = 1.5;
+var tXMin = -1.5;
+var tYMax = 0.0;
+var tYMin = -2.0;
+var tZMin = -1.0;
+var tZMax = 1.0;
+var legWidth = 0.5;
+
+var vertexesTable = [
+    // TOP OF TABLE
+    vec4(tXMin, tYMax, tZMax, 1.0), // 0
+    vec4(tXMin, tYMax, tZMin, 1.0), // 1
+    vec4(tXMax, tYMax, tZMin, 1.0), // 2
+    vec4(tXMax, tYMax, tZMax, 1.0), // 3
+
+    // BOTTOM OF TABLE 
+    vec4(tXMin, tYMax - diff, tZMax, 1.0), // 4
+    vec4(tXMin, tYMax - diff, tZMin, 1.0), // 5
+    vec4(tXMax, tYMax - diff, tZMin, 1.0), // 6
+    vec4(tXMax, tYMax - diff, tZMax, 1.0), // 7
+
+    // BACK RIGHT LEG
+    vec4(tXMax - legWidth, tYMax - diff, tZMin, 1.0), // 8
+    vec4(tXMax - legWidth, tYMax - diff, tZMin + legWidth, 1.0), // 9
+    vec4(tXMax, tYMax - diff, tZMin + legWidth, 1.0), // 10
+
+    vec4(tXMax, tYMin, tZMin, 1.0),  // 11
+    vec4(tXMax - legWidth, tYMin, tZMin, 1.0), // 12
+    vec4(tXMax - legWidth, tYMin, tZMin + legWidth, 1.0), // 13
+    vec4(tXMax, tYMin, tZMin + legWidth, 1.0), // 14
+
+    // BACK LEFT LEG
+    vec4(tXMin + legWidth, tYMax - diff, tZMin, 1.0), // 15
+    vec4(tXMin + legWidth, tYMax - diff, tZMin + legWidth, 1.0), // 16
+    vec4(tXMin, tYMax - diff, tZMin + legWidth, 1.0), // 17
+
+    vec4(tXMin + legWidth, tYMin, tZMin, 1.0), // 18
+    vec4(tXMin + legWidth, tYMin, tZMin + legWidth, 1.0), // 19
+    vec4(tXMin, tYMin, tZMin + legWidth, 1.0), // 20
+    vec4(tXMin, tYMin, tZMin, 1.0), // 21
+    
+
+];
+
+function Table() {
+    this.numPositions = 0; // number of vertices added to the vPositions
+    this.positions = []; // temporary array to hold the vertices
+    this.color = vec4(1.0, 0.0, 0.0, 1.0); // FIXME: REMOVE?
+    this.texture = [];
+    this.texID = 2.0;
+
+    this.indexes = [
+        // TABLE TOP
+        [0, 1, 2, 0, 2, 3], // top of table
+        [4, 5, 6, 4, 6, 7], // underside of table
+
+        // TABLE TOP CONNECTIONS
+        [4, 0, 3, 4, 3, 7], // front of table
+        [7, 3, 2, 7, 2, 6], // right side
+        [5, 1, 0, 5, 0, 4], // left side
+        [6, 2, 1, 6, 1, 5], // back side
+        
+        // BACK RIGHT LEG
+        [12, 8, 6, 12, 6, 11], // back side
+        [12, 8, 9, 12, 9, 13], // left side
+        [13, 9, 10, 13, 10, 14], // front side
+        [14, 10, 6, 14, 6, 11], // right side
+
+        // BACK LEFT LEG
+        [21, 5, 15, 21, 15, 18], // 
+        // [], // 
+        // [], // 
+        // [], // 
+
+        // FRONT LEFT LEG
+
+        // FRONT RIGHT LEG
+    ];
+
+    this.texIndexes = [0, 1, 2, 0, 2, 3];
+
+    ///////////////////////////////////
+    /*      GETTERS & SETTERS        */
+    ///////////////////////////////////
+
+    // GET THE NUMBER OF POSITIONS IN THE BUFFER THE SHAPE HAS
+    this.getNumPositions = function() {
+        // console.log("numPositions: " + this.numPositions)
+        return this.numPositions;
+    }
+
+    ///////////////////////////////////
+    /*       OTHER FUNCTIONS         */
+    ///////////////////////////////////
+
+    // INITIALIZATION FUNCTION
+    this.init = function() {
+        for (var i = 0; i < this.indexes.length; i++) {
+            for (var j = 0; j < this.indexes[i].length; j++) {
+                this.positions.push(vertexesTable[this.indexes[i][j]]);
+                this.texture.push(texCoord[this.texIndexes[j]]);
+            }
+        }
+    }
+
+    this.drawTable = function() {
+        for (var i = 0; i < this.positions.length; i++) {
+            vPositions.push(this.positions[i]);
+            vColors.push(this.color);
+            vTexCoords.push(this.texture[i]);
+            this.numPositions++;
+
+            let t = parseFloat(this.texID).toFixed(1);
+            vTexIDs.push(t);
+        }
+    }
+}
 
 ///////////////////////////////////
 /*    MAIN & RENDER FUNCTION     */
@@ -262,13 +430,19 @@ window.onload = function initialize() {
 
     var w = new Walls();
     w.init();
-    w.drawWalls();
-    numWallPositions = w.numPositions();
-    console.log(numWallPositions);
+    // w.drawWalls();
     // numPositions = numPositions + w.getNumPositions();
-    // console.log("numPositions: " + numPositions);
-    // console.log("vPositions:", vPositions);
-    // console.log("vTexCoord:", vTexCoords);
+
+    var f = new Floor();
+    f.init();
+    // f.drawFloor();
+    // numPositions = numPositions + f.getNumPositions();
+
+    var t = new Table();
+    t.init();
+    t.drawTable();
+
+    numPositions = numPositions + t.getNumPositions();
 
     // SET UP PROGRAM
     program = initShaders(gl, "vertex-shader", "fragment-shader");
@@ -277,17 +451,6 @@ window.onload = function initialize() {
     ///////////////////////////////////
     /*    SET UP SHADER VARIABLES    */
     ///////////////////////////////////
-    // vPositions = [
-    //     vec4(0.0, 0.5, 0.0, 1.0), // top center
-    //     vec4(-0.5, -0.5, 0.0, 1.0), // bottom left
-    //     vec4(0.5, -0.5, 0.0, 1.0) // bottom right
-    // ];
-    // numPositions = 3;
-    
-    // vColors.push(vec4(1.0, 0.0, 0.0, 1.0));
-    // vColors.push(vec4(1.0, 0.0, 0.0, 1.0));
-    // vColors.push(vec4(1.0, 0.0, 0.0, 1.0));
-    // console.log(vPositions);
 
     
     // CREATE & BIND VERTEX BUFFER
@@ -317,9 +480,14 @@ window.onload = function initialize() {
     gl.vertexAttribPointer(texCoordLoc, 2, gl.FLOAT, false, 0, 0);
     gl.enableVertexAttribArray(texCoordLoc);
 
+    var tIDBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, tIDBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vTexIDs), gl.STATIC_DRAW);
+
+    var textIDLoc = gl.getAttribLocation(program, "aTexID");
+    gl.vertexAttribPointer(textIDLoc, 1, gl.FLOAT, false, 0, 0);
+    gl.enableVertexAttribArray(textIDLoc);
     
-
-
 
     // GET UNIFORM VARIABLE LOCATIONS
     modelViewMatrixLoc = gl.getUniformLocation(program, "uModelViewMatrix");
@@ -338,24 +506,35 @@ window.onload = function initialize() {
 
     ///////////////////////////////////
 
+    var image0 = document.getElementById("texImage0");
+    configureTexture(image0, "uTextureMap0", gl.TEXTURE0, 0);
+
+    var image1 = document.getElementById("texImage1");
+    configureTexture(image1, "uTextureMap1", gl.TEXTURE1, 1);
+
+    var image2 = document.getElementById("texImage2");
+    configureTexture(image2, "uTextureMap2", gl.TEXTURE2, 2);
+
+
+    // console.log(vTexIDs);
+
     // DRAW
     render();
 }
 
 // RENDER FUNCTION
 var render = function() {
-    console.log("Render function called");
+    // console.log("Render function called");
 
     // CLEAR BITS
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
-    var image = document.getElementById("texImage1");
-    configureTexture(image);
+    
 
-    gl.drawElements(gl.TRIANGLES, 0, numWallPositions);
+    // gl.drawElements(gl.TRIANGLES, 0, numWallPositions);
 
     // DRAW FLOOR AND WALLS
-    // gl.drawArrays( gl.TRIANGLES, 0, numPositions);
+    gl.drawArrays( gl.TRIANGLES, 0, numPositions);
 
 
 
