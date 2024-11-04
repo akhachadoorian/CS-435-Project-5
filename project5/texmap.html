@@ -2,7 +2,9 @@
     CS 435
     Project 5
     Alex Khachadoorian
-    FIXME: description
+    This project outputs a room that consists of 3 brick walls and a carpeted floor and within the room is a wood table with a tv on it.
+    There is a menu on the right to turn the tv on and off, pause and play the show, and move the show onto the next or previous frame.
+    There is also a menu to change the viewer position to see different aspects of the room better.
 -->
 
 <!DOCTYPE html>
@@ -60,25 +62,18 @@
             void
             main()
             {
-                //fColor = vColor;
-                //fColor = vColor * texture(uTextureMap1, vTexCoord);
-                //float testTexID = 0.0;
                 if (vTexID == 0.0) {
                     fColor = texture(uTextureMap0, vTexCoord);
                     
                 }
                 else if (vTexID == 1.0) {
                     fColor = texture(uTextureMap1, vTexCoord);
-                    //fColor = vec4(0.0, 1.0, 0.0, 1.0);
                 }
                 else if (vTexID == 2.0) {
                     fColor = texture(uTextureMap2, vTexCoord);
-                    //fColor = vec4(0.0, 1.0, 0.0, 1.0);
                 }
                 else {
                     fColor = vColor;
-                    //fColor = vec4(vTexID, vTexID, vTexID, 1.0);
-                    //fColor = texture(uTextureMap0, vTexCoord);
                 }  
             }
         </script>
