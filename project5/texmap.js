@@ -17,6 +17,7 @@ var gl;
 var numPositions = 0; 
 var numWallPositions; //FIXME:
 var program;
+var animationDelay = 500;
 
 ///////////////////////////////////
 // BUFFER VARIABLES
@@ -85,9 +86,9 @@ var screenOptions = [
 
 var screenIndex = 0; // FIXME:
 var powerOn = false; // FIXME:
-var play = false;
+var play = true;
 
-var w, f, t, tv;
+var wall, floor, table, tv;
 
 
 ///////////////////////////////////
@@ -115,12 +116,12 @@ function reDrawScreen() {
     vTexCoords = [];
     vTexIDs = [];
 
-    w.drawWalls();
-    numPositions = numPositions + w.getNumPositions();
-    f.drawFloor();
-    numPositions = numPositions + f.getNumPositions();
-    t.drawTable();
-    numPositions = numPositions + t.getNumPositions();
+    wall.drawWalls();
+    numPositions = numPositions + wall.getNumPositions();
+    floor.drawFloor();
+    numPositions = numPositions + floor.getNumPositions();
+    table.drawTable();
+    numPositions = numPositions + table.getNumPositions();
     console.log(screenOptions[screenIndex])
     tv.drawTV(screenOptions[screenIndex]);
     numPositions = numPositions + tv.getNumPositions();
@@ -1391,83 +1392,108 @@ window.onload = function initialize() {
 
     gl.enable(gl.DEPTH_TEST);
 
+    // DRAW OBJECTS
+    wall = new Walls();
+    wall.init();
+    wall.drawWalls();
 
-    
-    // GET NUMBER OF POSITIONS
-    // numPositions = numPositions + floor.getNumPositions();
-    // numPositions = numPositions + wall.getNumPositions();
-    w = new Walls();
-    w.init();
-    w.drawWalls();
-    numPositions = numPositions + w.getNumPositions();
+    floor = new Floor();
+    floor.init();
+    floor.drawFloor();
 
-    f = new Floor();
-    f.init();
-    f.drawFloor();
-    numPositions = numPositions + f.getNumPositions();
-
-    t = new Table();
-    t.init();
-    t.drawTable();
-    numPositions = numPositions + t.getNumPositions();
+    table = new Table();
+    table.init();
+    table.drawTable();
 
     tv = new TV();
     tv.init();
     tv.drawTV(screenOptions[screenIndex]);
-    // tv.drawTV("black");
-    // tv.drawTV("s1");
+
+
+    // GET NUMBER OF POSITIONS
+    numPositions = numPositions + wall.getNumPositions();
+    numPositions = numPositions + floor.getNumPositions();
+    numPositions = numPositions + table.getNumPositions();
     numPositions = numPositions + tv.getNumPositions();
 
     ///////////////////////////////////
     /*      BUTTONS & SELECTS        */
     ///////////////////////////////////
 
+    // TURN ON TV BUTTON 
     document.getElementById("power-on").onclick = function() {
-        powerOn = true;
-        // screenIndex++;
-        screenIndex = 1; //FIXME: MAKE IT RETURN TO LAST PLACE?
-        console.log("on " + screenIndex);
+        if (!powerOn) {
+            // UPDATE CORRESPONDING VARIABLES
+            powerOn = true; // power is on
+            screenIndex = 1; // move screen to first frame
 
-        reDrawScreen();
-        render()
+            // REDRAW AND RERENDER 
+            reDrawScreen();
+            render()
+        }
     }
+
+    // TURN OFF TV BUTTON 
     document.getElementById("power-off").onclick = function() {
-        powerOn = false;
-        screenIndex = 0;
-        //FIXME: ADD TO WAY TO HOLD PREVIOUS INDEX
-        reDrawScreen();
-        render();
-    }
-    document.getElementById("pause").onclick = function() {
-        // if (powerOn) {
-        //     play = false;
-        // }
-        play = false;
-        render();
-    }
-    document.getElementById("play").onclick = function() {
-        // if (powerOn) {
-        //     play = true;
-        // }
-        play = true;
-        render();
-    }
-    document.getElementById("prev").onclick = function() {
         if (powerOn) {
-            screenIndex = (screenIndex - 1 < 1) ? 3 : screenIndex - 1;
+            // UPDATE CORRESPONDING VARIABLES
+            powerOn = false; // power is off
+            screenIndex = 0; // return to black screen
+
+            // REDRAW AND RERENDER 
+            reDrawScreen();
+            render();
+        }
+    }
+
+    // PAUSE SHOW BUTTON
+    document.getElementById("pause").onclick = function() {
+        if (powerOn) { // power must be on
+             // UPDATE CORRESPONDING VARIABLES
+            play = false; // stop frames from animating
+
+            // RERENDER 
+            render();
+        }
+    }
+
+    // PLAY SHOW BUTTON
+    document.getElementById("play").onclick = function() {
+        if (powerOn) { // power must be on
+             // UPDATE CORRESPONDING VARIABLES
+            play = true; // set frames to animate
+
+            // RERENDER 
+            render();
+        }
+    }
+
+    // PREVIOUS FRAME BUTTON
+    document.getElementById("prev").onclick = function() {
+        if (powerOn  && !play) {  // power must be on and show must be paused
+            if (screenIndex - 1 < 1) { // if already at start
+                screenIndex = 3 ; // loop back to end
+            }
+            else {
+                screenIndex = screenIndex - 1; // decrease screen index
+            }
+            
+            // REDRAW AND RERENDER 
             reDrawScreen();
             render()
         }
     }
     document.getElementById("next").onclick = function() {
-        if (powerOn) {
-            screenIndex = screenIndex % 3 + 1; 
+        if (powerOn  && !play) {  // power must be on and show must be paused
+            screenIndex = screenIndex % 3 + 1; // move to next frame unless at last frame, loop back to first
+
+            // REDRAW AND RERENDER 
             reDrawScreen();
             render()
         }
     }
 
-    // CAMERA POSITION
+    // CAMERA POSITION SELECT
     document.getElementById("viewer_pos").onchange = function() {
         //UPDATE CAMERA POSITION BASED ON SELECT CHANGE
         if (document.getElementById("viewer_pos").value == "AtScreen") {
@@ -1494,11 +1520,7 @@ window.onload = function initialize() {
         // RERENDER CANVAS
         render();
     }
-
     ///////////////////////////////////
-    // console.log("vPositions:", vPositions);
-
-    
 
     // SET UP PROGRAM
     program = initShaders(gl, "vertex-shader", "fragment-shader");
@@ -1508,7 +1530,6 @@ window.onload = function initialize() {
     /*    SET UP SHADER VARIABLES    */
     ///////////////////////////////////
 
-    
     // CREATE & BIND VERTEX BUFFER
     vBuffer = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, vBuffer);
@@ -1519,55 +1540,61 @@ window.onload = function initialize() {
     gl.vertexAttribPointer(positionLoc, 4, gl.FLOAT, false, 0, 0);
     gl.enableVertexAttribArray(positionLoc);
 
+    // CREATE & BIND COLOR BUFFER
     cBuffer = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, cBuffer);
     gl.bufferData(gl.ARRAY_BUFFER, flatten(vColors), gl.STATIC_DRAW );
 
+    // SET COLOR ATTRIBUTE VARIABLE
     var colorLoc = gl.getAttribLocation(program, "aColor");
     gl.vertexAttribPointer(colorLoc, 4, gl.FLOAT, false, 0, 0);
     gl.enableVertexAttribArray(colorLoc);
 
+    // CREATE & BIND TEXTURE COORDINATES BUFFER
     tBuffer = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, tBuffer);
     gl.bufferData(gl.ARRAY_BUFFER, flatten(vTexCoords), gl.STATIC_DRAW);
 
+    // SET TEXTURE COORDINATES  ATTRIBUTE VARIABLE
     var texCoordLoc = gl.getAttribLocation(program, "aTexCoord");
     gl.vertexAttribPointer(texCoordLoc, 2, gl.FLOAT, false, 0, 0);
     gl.enableVertexAttribArray(texCoordLoc);
 
+    // CREATE & BIND TEXTURE ID BUFFER
     tIDBuffer = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, tIDBuffer);
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vTexIDs), gl.STATIC_DRAW);
 
+    // SET TEXTURE ID ATTRIBUTE VARIABLE
     var textIDLoc = gl.getAttribLocation(program, "aTexID");
     gl.vertexAttribPointer(textIDLoc, 1, gl.FLOAT, false, 0, 0);
     gl.enableVertexAttribArray(textIDLoc);
     
-
     // GET UNIFORM VARIABLE LOCATIONS
     modelViewMatrixLoc = gl.getUniformLocation(program, "uModelViewMatrix");
     projectionMatrixLoc = gl.getUniformLocation(program, "uProjectionMatrix");
-    
 
     ///////////////////////////////////
 
-    var image0 = document.getElementById("texImage0");
-    configureTexture(image0, "uTextureMap0", gl.TEXTURE0, 0);
+    ///////////////////////////////////
+    /*        SETUP TEXTURES         */
+    ///////////////////////////////////
 
-    var image1 = document.getElementById("texImage1");
-    configureTexture(image1, "uTextureMap1", gl.TEXTURE1, 1);
+    var brickTexture = document.getElementById("brickTexture");
+    configureTexture(brickTexture, "uBrickTexture", gl.TEXTURE0, 0);
 
-    var image2 = document.getElementById("texImage2");
-    configureTexture(image2, "uTextureMap2", gl.TEXTURE2, 2);
+    var carpetTexture = document.getElementById("carpetTexture");
+    configureTexture(carpetTexture, "uCarpetTexture", gl.TEXTURE1, 1);
 
+    var woodTexture = document.getElementById("woodTexture");
+    configureTexture(woodTexture, "uWoodTexture", gl.TEXTURE2, 2);
 
-    // console.log(vTexIDs);
+    ///////////////////////////////////
 
     // DRAW
     render();
 }
 
-var animationDelay = 500;
 // RENDER FUNCTION
 var render = function() {
     console.log("Render function called");
@@ -1577,7 +1604,6 @@ var render = function() {
 
     // CALCULATE MATRIXES
     modelViewMatrix = lookAt(eye, at , up);
-    // console.log(modelViewMatrix)
     projectionMatrix = ortho(theLeft, theRight, theBottom, theTop, near, far);
 
     ///////////////////////////////////
@@ -1587,29 +1613,21 @@ var render = function() {
     gl.uniformMatrix4fv(modelViewMatrixLoc, false, flatten(modelViewMatrix) ); // set modelViewMatrix
     gl.uniformMatrix4fv(projectionMatrixLoc, false, flatten(projectionMatrix)); // set projectionMatrix
 
+    // DETERMINE IF FRAMES NEED TO BE ANIMATED OR STATIC    
     if (powerOn && play) {
-        console.log("play")
-        screenIndex = screenIndex % 3 + 1; 
-        
-        reDrawScreen();
-        gl.drawArrays( gl.TRIANGLES, 0, numPositions);
+        screenIndex = screenIndex % 3 + 1; // get the next screen index
+
+        reDrawScreen(); // redraw screen
+
+        gl.drawArrays( gl.TRIANGLES, 0, numPositions); // draw
+
+        // request frame after animation delay
         setTimeout(() => {
             requestAnimationFrame(render);
         }, animationDelay);
-        // requestAnimationFrame(render);
-        // play = false;
 
     }
     else {
-        gl.drawArrays( gl.TRIANGLES, 0, numPositions);
+        gl.drawArrays( gl.TRIANGLES, 0, numPositions); // draw 
     }
-
-    // gl.drawElements(gl.TRIANGLES, 0, numWallPositions);
-
-    // DRAW FLOOR AND WALLS
-    // gl.drawArrays( gl.TRIANGLES, 0, numPositions);
-    // requestAnimationFrame(render);
-
-
-
 }
