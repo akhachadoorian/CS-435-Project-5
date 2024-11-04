@@ -52,12 +52,10 @@ var projectionMatrix; // holds the projection matrix
 // CAMERA VARIABLES
 var eyePositions = [
     vec3(0.0, 1.0, 5.0), // lower y value
-    vec3(0.0, -0.1, 3.0),  // B
-    vec3(0.0, -2.0, 3.0),  // underside
-    vec3(-3.0, 3.0, 3.0),  // look at right wall
+    vec3(-5.0, 5.0, 5.0),  // look at right wall
     vec3(0.0, 5.0, 5.0),   // at origins 
     vec3(5.0, 5.0, 5.0),   // look at left wall
-    vec3(3.0, 2.0, 3.0),   // look at left wall
+    vec3(0.0, -5.0, 5.0),  // underside
 ]; // holds all possible camera positions
 
 var eyeIndex = 0; // holds the index for the camera position
@@ -1472,29 +1470,25 @@ window.onload = function initialize() {
     // CAMERA POSITION
     document.getElementById("viewer_pos").onchange = function() {
         //UPDATE CAMERA POSITION BASED ON SELECT CHANGE
-        if (document.getElementById("viewer_pos").value == "A") {
+        if (document.getElementById("viewer_pos").value == "AtScreen") {
             eye = eyePositions[0];
             eyeIndex = 0;
         }
-        else if (document.getElementById("viewer_pos").value == "B") {
+        else if (document.getElementById("viewer_pos").value == "AtRightWall") {
             eye = eyePositions[1];
             eyeIndex = 1;
         }
-        else if (document.getElementById("viewer_pos").value == "C") {
+        else if (document.getElementById("viewer_pos").value == "AtScreenHigher") {
             eye = eyePositions[2];
             eyeIndex = 2;
         }
-        else if (document.getElementById("viewer_pos").value == "D") {
+        else if (document.getElementById("viewer_pos").value == "AtLeftWall") {
             eye = eyePositions[3];
             eyeIndex = 3;
         }
-        else if (document.getElementById("viewer_pos").value == "E") {
+        else if (document.getElementById("viewer_pos").value == "Underside") {
             eye = eyePositions[4];
             eyeIndex = 4;
-        }
-        else if (document.getElementById("viewer_pos").value == "F") {
-            eye = eyePositions[5];
-            eyeIndex = 5;
         }
 
         // RERENDER CANVAS
