@@ -15,22 +15,20 @@
 var canvas; 
 var gl;
 var numPositions = 0; 
-var numWallPositions; //FIXME:
 var program;
 var animationDelay = 500;
 
 ///////////////////////////////////
+
 // BUFFER VARIABLES
 var vPositions = []; // holds all the vertex positions
-var vColors = [];
-var vTexCoords = [];
-var vTexIDs = [];
-var vBuffer, cBuffer, tBuffer, tIDBuffer;
-
-// var normals = []; // holds all the normals for the vertexes
-///////////////////////////////////
+var vColors = []; // holds all the vertex colors
+var vTexCoords = []; // holds all the vertex texture coordinates
+var vTexIDs = []; // holds all the vertex texture IDs
+var vBuffer, cBuffer, tBuffer, tIDBuffer;  // all the buffers
 
 ///////////////////////////////////
+
 // PERSPECTIVE VARIABLES
 var near = -20; // near plane is 10 units behind the camera
 var far = 20; // far plane is 10 units in front of the camera
@@ -40,16 +38,13 @@ var theTop = 5.0; // top is 3 units above of the origin
 var theBottom = -5.0; // bottom is 3 units below the origin
 ///////////////////////////////////
 
-///////////////////////////////////
 // VIEW VARIABLES
 var modelViewMatrixLoc, projectionMatrixLoc, normalMatrixLoc; // view variable locations in shaders
 var modelViewMatrix; //  holds the model view matrix
 var projectionMatrix; // holds the projection matrix
-// var normalMatrix; //holds the normal matrix
-///////////////////////////////////
-
 
 ///////////////////////////////////
+
 // CAMERA VARIABLES
 var eyePositions = [
     vec3(0.0, 1.0, 5.0), // lower y value
@@ -61,143 +56,273 @@ var eyePositions = [
 
 var eyeIndex = 0; // holds the index for the camera position
 
-var eye = eyePositions[0]; // holds the camera position for rendering FIXME:
+var eye = eyePositions[0]; // holds the camera position for rendering 
 var at = vec3(0.0, 0.0, 0.0); // holds camera aim -> at origin
 var up = vec3(0.0, 1.0, 0.0); // holds up vector -> positive y direction
+
 ///////////////////////////////////
 
+// TEXTURE VARIABLE
+var texture; 
 
-var texture;
-// var texSize = 64;
-
-var texCoord = [
+var texCoord = [ // holds vertex positions for texture
     vec2(0, 0),
     vec2(0, 1),
     vec2(1, 1),
     vec2(1, 0)
 ];
 
-var screenOptions = [
+///////////////////////////////////
+
+// TV VARIABLES
+var screenOptions = [ // holds different frames
     "black",
-    "s1",
-    "s2",
-    "s3",
+    "starting duel",
+    "sabers hitting",
+    "anakin in lava",
 ];
 
-var screenIndex = 0; // FIXME:
-var powerOn = false; // FIXME:
-var play = true;
+var screenIndex = 0; // which state screen is in
+var powerOn = false; // holds whether the tv is on or off
+var play = false; // holds whether the tv show is playing
 
-var wall, floor, table, tv;
+var wall, floor, table, tv; // holds the corresponding object's variables
 
+///////////////////////////////////
+
+// GENERAL SHAPE VARIABLES
+var xMax = 1; // x max
+var xMin = -1; // x min
+var yMax = 1; // y max
+var yMin = -1; // y min
+var zValue = 0.6; // z value
+
+var generalVerticesSquare = [ // vertices for a square
+    vec4(xMin, yMin, zValue, 1.0), // bottom left
+    vec4(xMin, yMax, zValue, 1.0), // top left
+    vec4(xMax, yMax, zValue, 1.0), // top right
+
+    vec4(xMin, yMin, zValue, 1.0), // bottom left
+    vec4(xMax, yMax, zValue, 1.0), // top right
+    vec4(xMax, yMin, zValue, 1.0), // bottom right
+];
+
+var generalVerticesTriangle = [ // vertices for a triangle
+    vec4(xMin, yMin, zValue, 1.0), // bottom left
+    vec4(xMax, yMin, zValue, 1.0), // bottom right
+    vec4((xMin + xMax) / 2, yMax, zValue, 1.0), // top point
+];
+
+///////////////////////////////////
+
+// COLOR VARIABLES
+var squareColor = vec4(0.0, 0.0, 0.0, 1.0);
+var triangleColor = vec4(0.824, 0.706, 0.549, 1.0);
+
+var squareBladeColor = vec4(1.0, 0.0, 0.0, 1.0);
+var triangleBladeColor = vec4(0.0, 0.0, 1.0, 1.0);
+
+///////////////////////////////////
 
 ///////////////////////////////////
 /*       GLOBAL FUNCTIONS        */
 ///////////////////////////////////
 
+// FUNCTION TO CONFIGURE TEXTURE
+// image -> texture image
+// uniformVarName -> name of the corresponding uniform variable
+// textureUnit -> active texture unit name
+// uniformLoc -> location of texture uniform variable
 function configureTexture( image, uniformVarName, textureUnit, uniformLoc ) {
-    // console.log("uniformVarName: " + uniformVarName);
-
+    // CREATE TEXTURE
     texture = gl.createTexture();
+
     gl.activeTexture(textureUnit); 
     gl.bindTexture(gl.TEXTURE_2D, texture);
+
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, image);
     gl.generateMipmap(gl.TEXTURE_2D);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST_MIPMAP_LINEAR);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
 
+    // SEND TO UNIFORM VARIABLE
     gl.uniform1i(gl.getUniformLocation(program, uniformVarName), uniformLoc);
 }
 
+// FUNCTION TO REDRAW TV SCREEN
 function reDrawScreen() {
+    // RESET BUFFER VARIABLES
     numPositions = 0;
     vPositions = [];
     vColors = [];
     vTexCoords = [];
     vTexIDs = [];
 
+    // REDRAW OBJECTS
     wall.drawWalls();
-    numPositions = numPositions + wall.getNumPositions();
     floor.drawFloor();
-    numPositions = numPositions + floor.getNumPositions();
     table.drawTable();
-    numPositions = numPositions + table.getNumPositions();
-    console.log(screenOptions[screenIndex])
     tv.drawTV(screenOptions[screenIndex]);
+
+    // GET NEW NUMBER OF POSITIONS
+    numPositions = numPositions + wall.getNumPositions();
+    numPositions = numPositions + floor.getNumPositions();
+    numPositions = numPositions + table.getNumPositions();
     numPositions = numPositions + tv.getNumPositions();
 
+    // REBIND VERTEX BUFFER
     gl.bindBuffer(gl.ARRAY_BUFFER, vBuffer);
     gl.bufferData(gl.ARRAY_BUFFER, flatten(vPositions), gl.STATIC_DRAW);
 
+    // REBIND COLOR BUFFER
     gl.bindBuffer(gl.ARRAY_BUFFER, cBuffer);
     gl.bufferData(gl.ARRAY_BUFFER, flatten(vColors), gl.STATIC_DRAW );
 
+    // REBIND TEXTURE COORDINATE BUFFER
     gl.bindBuffer(gl.ARRAY_BUFFER, tBuffer);
     gl.bufferData(gl.ARRAY_BUFFER, flatten(vTexCoords), gl.STATIC_DRAW);
 
+    // REBIND TEXTURE ID BUFFER
     gl.bindBuffer(gl.ARRAY_BUFFER, tIDBuffer);
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vTexIDs), gl.STATIC_DRAW);
+}
+
+// FUNCTION TO DETERMINE THE TRANSFORMATION MATRIX
+// rotation -> rotation matrix
+// scale -> scaling matrix
+// translation -> translation matrix
+function determineTransformationMatrix(rotation, scaling, translation) {
+    // SET UP VARIABLES
+    var m = mat4(); // identity matrix that will be the translation matrix
+
+    // DETERMINE TRANSFORMATION MATRIX
+    m = mult(m, rotation); 
+    m = mult(m, scaling);
+    m = mult(m, translation);
+
+    return m; // return calculated matrix
+} 
+
+// FUNCTION TO DRAW SQUARAKIN
+// positions -> holds corresponding position array
+// colors -> holds corresponding color array
+// diffTranslation -> holds different translation matrix
+// rotateSquare -> whether or not to rotate square
+// burning -> whether or not the square is burning
+function drawSquare(positions, colors, diffTranslation, rotateSquare, burning) {
+    // SETUP TRANSLATION VARIABLES
+    var t = translate(-2.5, 2.0, 0.1); // translation matrix -> more left and up
+    var r = rotate(0, 0, 0, 1); // rotation matrix -> nothing
+    var s = scale(0.5, 0.5, 1); // scaling matrix -> shrink by half
+
+    if (diffTranslation != false ) { // if different translation matrix is entered
+        t = diffTranslation;
+    } 
+
+    if (rotateSquare) { // if rotating true
+        r = rotate(-10, 0, 0, 1);
+    }
+
+    // GET TRANSLATION MATRIX
+    var m = determineTransformationMatrix(r, s, t);
+
+    // SETUP BURN VERTEX COLORS
+    var burn = [ // holds vertex colors if burning
+        vec4(0.788, 0.173, 0.0, 1.0),
+        squareColor,
+        squareColor,
+        vec4(0.788, 0.173, 0.0, 1.0),
+        squareColor,
+        squareColor,
+    ]
+
+    // FILL PARAMETER ARRAYS
+    for (var j = 0; j < generalVerticesSquare.length; j++) {
+        var temp = mult(m, generalVerticesSquare[j]);
+        positions.push(temp);
+
+        // PUSH CORRECT COLOR
+        if (burning) {
+            colors.push(burn[j]);
+        }
+        else {
+            colors.push(squareColor);
+        }
+    }
+}
+
+// FUNCTION TO DRAW TRIANGOBI
+// positions -> holds corresponding position array
+// colors -> holds corresponding color array
+// diffTranslation -> holds different translation matrix
+function drawTriangle(positions, colors, diffTranslation) {
+    // SETUP TRANSLATION VARIABLES
+    var t = translate(1.2, 2.0, 0.1); // translation matrix -> move right and up
+    var r = rotate(0, 0, 1, 0); // rotation matrix -> nothing
+    var s = scale(0.5, 0.5, 1); // scaling matrix -> shrink by half
+
+    if (diffTranslation != false ) { // if different translation matrix is entered
+        t = diffTranslation;
+    }
+
+    // DETERMINE TRANSFORMATION MATRIX
+    var m = determineTransformationMatrix(r, s, t);
+
+    // FILL PARAMETER ARRAYS
+    for (var i = 0; i < generalVerticesTriangle.length; i++) {
+        var temp = mult(m, generalVerticesTriangle[i]);
+        positions.push(temp);
+        colors.push(triangleColor);
+    }
 }
 
 ///////////////////////////////////
 /*           CLASSES             */
 ///////////////////////////////////
-var texCoord = [
-    vec2(0, 0),
-    vec2(0, 1),
-    vec2(1, 1),
-    vec2(1, 0)
-];
 
-//
-var wXMax = 4.0;
-var wXMin = -4.0;
-var wYMax = 4.0;
-var wYMin = -4.0;
-var wZMax = 4.0;
-var wZMin = -4.0;
-var diff = 0.2;
-
-var vertexes = [
-    // OUTER WALL
-    vec4(wXMin, wYMin, wZMin, 1.0), // 0
-    vec4(wXMin, wYMax, wZMin, 1.0), // 1
-    vec4(wXMax, wYMax, wZMin, 1.0), // 2
-    vec4(wXMax, wYMin, wZMin, 1.0), // 3
-    vec4(wXMax, wYMin, wZMax, 1.0), // 4
-    vec4(wXMax, wYMax, wZMax, 1.0), // 5
-    vec4(wXMin, wYMax, wZMax, 1.0), // 6
-    vec4(wXMin, wYMin, wZMax, 1.0), // 7
-
-    // INNER WALL
-    vec4(wXMin + diff, wYMin, wZMin + diff, 1.0), // 8
-    vec4(wXMin + diff, wYMax, wZMin + diff, 1.0), // 9
-    vec4(wXMax - diff, wYMax, wZMin + diff, 1.0), // 10
-    vec4(wXMax - diff, wYMin, wZMin + diff, 1.0), // 11
-    vec4(wXMax - diff, wYMin, wZMax, 1.0), // 12
-    vec4(wXMax - diff, wYMax, wZMax, 1.0), // 13
-    vec4(wXMin + diff, wYMax, wZMax, 1.0), // 14
-    vec4(wXMin + diff, wYMin, wZMax, 1.0), // 15
-
-    vec4(wXMin, wYMin - diff, wZMin, 1.0), // 16
-    vec4(wXMax, wYMin - diff, wZMin, 1.0), // 17
-    vec4(wXMax, wYMin - diff, wZMax, 1.0), // 18
-    vec4(wXMin, wYMin - diff, wZMax, 1.0), // 19
-]
-
-
-
+// CLASS TO DRAW BRICK WALLS
 function Walls() {
     ///////////////////////////////////
     /*     INSTANCE VARIABLES        */
     ///////////////////////////////////
     this.numPositions = 0; // number of vertices added to the vPositions
     this.positions = []; // temporary array to hold the vertices
-    this.color = vec4(1.0, 0.0, 0.0, 1.0); // FIXME: REMOVE?
-    this.texture = [];
-    this.texID = 0.0;
+    this.color = vec4(0.0, 0.0, 0.0, 0.0); // holds wall color
+    this.texture = []; // temporary array to hold the texture coordinates
+    this.texID = 0.0; // texture id to tell fragment shader to use brick texture
+    this.texIndexes = [0, 1, 2, 0, 2, 3]; // texture coordinate indexes
 
-    this.texIndexes = [0, 1, 2, 0, 2, 3];
+    // VERTEX MAXES AND MINS
+    this.wXMax = 4.0;
+    this.wXMin = -4.0;
+    this.wYMax = 4.0;
+    this.wYMin = -4.0;
+    this.wZMax = 4.0;
+    this.wZMin = -4.0;
+
+    this.diff = 0.2; // difference between inner and outer wall
+
+    this.vertexesWall = [
+        // OUTER WALL
+        vec4(this.wXMin, this.wYMin, this.wZMin, 1.0), // 0
+        vec4(this.wXMin, this.wYMax, this.wZMin, 1.0), // 1
+        vec4(this.wXMax, this.wYMax, this.wZMin, 1.0), // 2
+        vec4(this.wXMax, this.wYMin, this.wZMin, 1.0), // 3
+        vec4(this.wXMax, this.wYMin, this.wZMax, 1.0), // 4
+        vec4(this.wXMax, this.wYMax, this.wZMax, 1.0), // 5
+        vec4(this.wXMin, this.wYMax, this.wZMax, 1.0), // 6
+        vec4(this.wXMin, this.wYMin, this.wZMax, 1.0), // 7
+    
+        // INNER WALL
+        vec4(this.wXMin + this.diff, this.wYMin, this.wZMin + this.diff, 1.0), // 8
+        vec4(this.wXMin + this.diff, this.wYMax, this.wZMin + this.diff, 1.0), // 9
+        vec4(this.wXMax - this.diff, this.wYMax, this.wZMin + this.diff, 1.0), // 10
+        vec4(this.wXMax - this.diff, this.wYMin, this.wZMin + this.diff, 1.0), // 11
+        vec4(this.wXMax - this.diff, this.wYMin, this.wZMax, 1.0), // 12
+        vec4(this.wXMax - this.diff, this.wYMax, this.wZMax, 1.0), // 13
+        vec4(this.wXMin + this.diff, this.wYMax, this.wZMax, 1.0), // 14
+        vec4(this.wXMin + this.diff, this.wYMin, this.wZMax, 1.0), // 15
+    ]
 
     this.indexes = [
         // OUTSIDE WALLS
@@ -226,7 +351,6 @@ function Walls() {
 
     // GET THE NUMBER OF POSITIONS IN THE BUFFER THE SHAPE HAS
     this.getNumPositions = function() {
-        // console.log("numPositions: " + this.numPositions)
         return this.numPositions;
     }
 
@@ -236,45 +360,79 @@ function Walls() {
 
     // INITIALIZATION FUNCTION
     this.init = function() {
+        // GET VERTEX POSITIONS AND TEXTURE COORDINATES 
         for (var i = 0; i < this.indexes.length; i++) {
             for (var j = 0; j < this.indexes[i].length; j++) {
-                this.positions.push(vertexes[this.indexes[i][j]]);
+                this.positions.push(this.vertexesWall[this.indexes[i][j]]);
                 this.texture.push(texCoord[this.texIndexes[j]]);
             }
         }
     }
 
+    // DRAW WALLS
     this.drawWalls = function() {
+        // COPY POSITIONS, COLORS, TEXTURE COORDINATES, AND TEXTURE IDs TO BUFFER ARRAYS
         for (var i = 0; i < this.positions.length; i++) {
             vPositions.push(this.positions[i]);
             vColors.push(this.color);
             vTexCoords.push(this.texture[i]);
-            this.numPositions++;
 
-            let t = parseFloat(this.texID).toFixed(1);
+            this.numPositions++; // increment number of positions to match the position being added
+
+            // PUSH TEXTURE ID
+            let t = parseFloat(this.texID).toFixed(1); // make sure its float with one decimal
             vTexIDs.push(t);
         }
     }
 }
 
+// CLASS TO DRAW CARPET FLOOR
 function Floor() {
     ///////////////////////////////////
     /*     INSTANCE VARIABLES        */
     ///////////////////////////////////
     this.numPositions = 0; // number of vertices added to the vPositions
     this.positions = []; // temporary array to hold the vertices
-    this.color = vec4(1.0, 0.0, 0.0, 1.0); // FIXME: REMOVE?
-    this.texture = [];
-    this.texID = 1.0;
+    this.color = vec4(0.0, 0.0, 0.0, 0.0); // holds floor color
+    this.texture = []; // temporary array to hold the texture coordinates
+    this.texID = 1.0; // texture id to tell fragment shader to use carpet texture
+    this.texCIndex = [0, 2, 3, 0, 1, 2]; // texture coordinate indexes
+
+    // VERTEX MAXES AND MINS
+    this.fXMax = 4.0;
+    this.fXMin = -4.0;
+    this.fYMax = 4.0;
+    this.fYMin = -4.0;
+    this.fZMax = 4.0;
+    this.fZMin = -4.0;
+
+    this.diff = 0.2; // difference between upper and lower floor
+
+    this.vertexesFloor = [
+        // UPPER FLOOR
+        vec4(this.fXMin, this.fYMin, this.fZMin, 1.0), // 0
+        vec4(this.fXMax, this.fYMin, this.fZMin, 1.0), // 1
+        vec4(this.fXMax, this.fYMin, this.fZMax, 1.0), // 2
+        vec4(this.fXMin, this.fYMin, this.fZMax, 1.0), // 3
+
+        // LOWER FLOOR
+        vec4(this.fXMin, this.fYMin - this.diff, this.fZMin, 1.0), // 4
+        vec4(this.fXMax, this.fYMin - this.diff, this.fZMin, 1.0), // 5 
+        vec4(this.fXMax, this.fYMin - this.diff, this.fZMax, 1.0), // 6
+        vec4(this.fXMin, this.fYMin - this.diff, this.fZMax, 1.0), // 7
+    ]
 
     this.indexes = [
-        [7, 3, 4, 7, 0, 3],
-        [19, 17, 18, 19, 16, 17],
+        // FLOORS
+        [3, 1, 2, 3, 0, 1], // upper floor
+        [7, 5, 6, 7, 4, 5], // lower floor
 
-        [19, 4, 18, 19, 7, 4],
+        // CONNECTIONS
+        [7, 2, 6, 7, 3, 2], // front
+        [6, 1, 5, 6, 2, 1], // right
+        [5, 0, 3, 5, 1, 0], // back
+        [4, 3, 7, 4, 0, 3], // left
     ];
-
-    this.texCIndex = [0, 2, 3, 0, 1, 2];
 
     ///////////////////////////////////
     /*      GETTERS & SETTERS        */
@@ -282,7 +440,6 @@ function Floor() {
 
     // GET THE NUMBER OF POSITIONS IN THE BUFFER THE SHAPE HAS
     this.getNumPositions = function() {
-        // console.log("numPositions: " + this.numPositions)
         return this.numPositions;
     }
 
@@ -292,99 +449,108 @@ function Floor() {
 
     // INITIALIZATION FUNCTION
     this.init = function() {
+        // GET VERTEX POSITIONS AND TEXTURE COORDINATES 
         for (var i = 0; i < this.indexes.length; i++) {
             for (var j = 0; j < this.indexes[i].length; j++) {
-                this.positions.push(vertexes[this.indexes[i][j]]);
+                this.positions.push(this.vertexesFloor[this.indexes[i][j]]);
                 this.texture.push(texCoord[this.texCIndex[j]]);
-
-                // console.log("index: "+  this.indexes[i][j])
-                // console.log(texCoord[this.indexes[i][j] % 4]);
             }
         }
     }
 
+    // DRAW FLOOR
     this.drawFloor = function() {
+        // COPY POSITIONS, COLORS, TEXTURE COORDINATES, AND TEXTURE IDs TO BUFFER ARRAYS
         for (var i = 0; i < this.positions.length; i++) {
             vPositions.push(this.positions[i]);
             vColors.push(this.color);
             vTexCoords.push(this.texture[i]);
-            this.numPositions++;
 
-            let t = parseFloat(this.texID).toFixed(1);
+            this.numPositions++; // increment number of positions to match the position being added
+
+            // PUSH TEXTURE ID
+            let t = parseFloat(this.texID).toFixed(1); // make sure its float with one decimal
             vTexIDs.push(t);
         }
     }
 }
 
-var tXMax = 3.0;
-var tXMin = -3.0;
-var tYMax = -1.0;
-var tYMin = -4.0;
-var tZMin = -3.0;
-var tZMax = 1.0;
-var tableWidth = 0.5;
-var legWidth = 0.2;
-
-var vertexesTable = [
-    // TOP OF TABLE
-    vec4(tXMin, tYMax, tZMax, 1.0), // 0
-    vec4(tXMin, tYMax, tZMin, 1.0), // 1
-    vec4(tXMax, tYMax, tZMin, 1.0), // 2
-    vec4(tXMax, tYMax, tZMax, 1.0), // 3
-
-    // BOTTOM OF TABLE 
-    vec4(tXMin, tYMax - tableWidth, tZMax, 1.0), // 4
-    vec4(tXMin, tYMax - tableWidth, tZMin, 1.0), // 5
-    vec4(tXMax, tYMax - tableWidth, tZMin, 1.0), // 6
-    vec4(tXMax, tYMax - tableWidth, tZMax, 1.0), // 7
-
-    // BACK RIGHT LEG
-    vec4(tXMax - legWidth, tYMax - tableWidth, tZMin, 1.0), // 8
-    vec4(tXMax - legWidth, tYMax - tableWidth, tZMin + legWidth, 1.0), // 9
-    vec4(tXMax, tYMax - tableWidth, tZMin + legWidth, 1.0), // 10
-
-    vec4(tXMax, tYMin, tZMin, 1.0),  // 11
-    vec4(tXMax - legWidth, tYMin, tZMin, 1.0), // 12
-    vec4(tXMax - legWidth, tYMin, tZMin + legWidth, 1.0), // 13
-    vec4(tXMax, tYMin, tZMin + legWidth, 1.0), // 14
-
-    // BACK LEFT LEG
-    vec4(tXMin + legWidth, tYMax - tableWidth, tZMin, 1.0), // 15
-    vec4(tXMin + legWidth, tYMax - tableWidth, tZMin + legWidth, 1.0), // 16
-    vec4(tXMin, tYMax - tableWidth, tZMin + legWidth, 1.0), // 17
-
-    vec4(tXMin + legWidth, tYMin, tZMin, 1.0), // 18
-    vec4(tXMin + legWidth, tYMin, tZMin + legWidth, 1.0), // 19
-    vec4(tXMin, tYMin, tZMin + legWidth, 1.0), // 20
-    vec4(tXMin, tYMin, tZMin, 1.0), // 21
-
-    // FRONT LEFT LEG
-    vec4(tXMin, tYMax - tableWidth, tZMax - legWidth, 1.0), // 22
-    vec4(tXMin + legWidth, tYMax - tableWidth, tZMax - legWidth, 1.0), // 23
-    vec4(tXMin + legWidth, tYMax - tableWidth, tZMax, 1.0), // 24
-
-    vec4(tXMin, tYMin, tZMax, 1.0), // 25
-    vec4(tXMin, tYMin, tZMax - legWidth, 1.0), // 26
-    vec4(tXMin + legWidth, tYMin, tZMax - legWidth, 1.0), // 27
-    vec4(tXMin + legWidth, tYMin, tZMax, 1.0), // 28
-    
-    // FRONT LEFT LEG
-    vec4(tXMax, tYMax - tableWidth, tZMax - legWidth, 1.0), // 29
-    vec4(tXMax - legWidth, tYMax - tableWidth, tZMax - legWidth, 1.0), // 30
-    vec4(tXMax - legWidth, tYMax - tableWidth, tZMax, 1.0), // 31
-
-    vec4(tXMax, tYMin, tZMax, 1.0), // 32
-    vec4(tXMax, tYMin, tZMax - legWidth, 1.0), // 33
-    vec4(tXMax - legWidth, tYMin, tZMax - legWidth, 1.0), // 34
-    vec4(tXMax - legWidth, tYMin, tZMax, 1.0), // 35
-];
-
+// CLASS TO DRAW WOOD TABLE
 function Table() {
+    ///////////////////////////////////
+    /*     INSTANCE VARIABLES        */
+    ///////////////////////////////////
     this.numPositions = 0; // number of vertices added to the vPositions
     this.positions = []; // temporary array to hold the vertices
-    this.color = vec4(1.0, 0.0, 0.0, 1.0); // FIXME: REMOVE?
-    this.texture = [];
-    this.texID = 2.0;
+    this.color = vec4(0.0, 0.0, 0.0, 1.0); // holds table color
+    this.texture = []; // temporary array to hold the texture coordinates
+    this.texID = 2.0; // texture id to tell fragment shader to use wood texture
+    this.texIndexes = [0, 1, 2, 0, 2, 3];
+
+    // VERTEX MAXES AND MINS
+    this.tXMax = 3.0;
+    this.tXMin = -3.0;
+    this.tYMax = -1.0;
+    this.tYMin = -4.0;
+    this.tZMin = -3.0;
+    this.tZMax = 1.0;
+
+    this.tableWidth = 0.5; 
+    this.legWidth = 0.5;
+
+    this.vertexesTable = [
+        // TOP OF TABLE
+        vec4(this.tXMin, this.tYMax, this.tZMax, 1.0), // 0
+        vec4(this.tXMin, this.tYMax, this.tZMin, 1.0), // 1
+        vec4(this.tXMax, this.tYMax, this.tZMin, 1.0), // 2
+        vec4(this.tXMax, this.tYMax, this.tZMax, 1.0), // 3
+    
+        // BOTTOM OF TABLE 
+        vec4(this.tXMin, this.tYMax - this.tableWidth, this.tZMax, 1.0), // 4
+        vec4(this.tXMin, this.tYMax - this.tableWidth, this.tZMin, 1.0), // 5
+        vec4(this.tXMax, this.tYMax - this.tableWidth, this.tZMin, 1.0), // 6
+        vec4(this.tXMax, this.tYMax - this.tableWidth, this.tZMax, 1.0), // 7
+    
+        // BACK RIGHT LEG
+        vec4(this.tXMax - this.legWidth, this.tYMax - this.tableWidth, this.tZMin, 1.0), // 8
+        vec4(this.tXMax - this.legWidth, this.tYMax - this.tableWidth, this.tZMin + this.legWidth, 1.0), // 9
+        vec4(this.tXMax, this.tYMax - this.tableWidth, this.tZMin + this.legWidth, 1.0), // 10
+    
+        vec4(this.tXMax, this.tYMin, this.tZMin, 1.0),  // 11
+        vec4(this.tXMax - this.legWidth, this.tYMin, this.tZMin, 1.0), // 12
+        vec4(this.tXMax - this.legWidth, this.tYMin, this.tZMin + this.legWidth, 1.0), // 13
+        vec4(this.tXMax, this.tYMin, this.tZMin + this.legWidth, 1.0), // 14
+    
+        // BACK LEFT LEG
+        vec4(this.tXMin + this.legWidth, this.tYMax - this.tableWidth, this.tZMin, 1.0), // 15
+        vec4(this.tXMin + this.legWidth, this.tYMax - this.tableWidth, this.tZMin + this.legWidth, 1.0), // 16
+        vec4(this.tXMin, this.tYMax - this.tableWidth, this.tZMin + this.legWidth, 1.0), // 17
+    
+        vec4(this.tXMin + this.legWidth, this.tYMin, this.tZMin, 1.0), // 18
+        vec4(this.tXMin + this.legWidth, this.tYMin, this.tZMin + this.legWidth, 1.0), // 19
+        vec4(this.tXMin, this.tYMin, this.tZMin + this.legWidth, 1.0), // 20
+        vec4(this.tXMin, this.tYMin, this.tZMin, 1.0), // 21
+    
+        // FRONT LEFT LEG
+        vec4(this.tXMin, this.tYMax - this.tableWidth, this.tZMax - this.legWidth, 1.0), // 22
+        vec4(this.tXMin + this.legWidth, this.tYMax - this.tableWidth, this.tZMax - this.legWidth, 1.0), // 23
+        vec4(this.tXMin + this.legWidth, this.tYMax - this.tableWidth, this.tZMax, 1.0), // 24
+    
+        vec4(this.tXMin, this.tYMin, this.tZMax, 1.0), // 25
+        vec4(this.tXMin, this.tYMin, this.tZMax - this.legWidth, 1.0), // 26
+        vec4(this.tXMin + this.legWidth, this.tYMin, this.tZMax - this.legWidth, 1.0), // 27
+        vec4(this.tXMin + this.legWidth, this.tYMin, this.tZMax, 1.0), // 28
+        
+        // FRONT LEFT LEG
+        vec4(this.tXMax, this.tYMax - this.tableWidth, this.tZMax - this.legWidth, 1.0), // 29
+        vec4(this.tXMax - this.legWidth, this.tYMax - this.tableWidth, this.tZMax - this.legWidth, 1.0), // 30
+        vec4(this.tXMax - this.legWidth, this.tYMax - this.tableWidth, this.tZMax, 1.0), // 31
+    
+        vec4(this.tXMax, this.tYMin, this.tZMax, 1.0), // 32
+        vec4(this.tXMax, this.tYMin, this.tZMax - this.legWidth, 1.0), // 33
+        vec4(this.tXMax - this.legWidth, this.tYMin, this.tZMax - this.legWidth, 1.0), // 34
+        vec4(this.tXMax - this.legWidth, this.tYMin, this.tZMax, 1.0), // 35
+    ];
 
     this.indexes = [
         // TABLE TOP
@@ -410,19 +576,17 @@ function Table() {
         [19, 16, 15, 19, 15, 18], // right side
 
         // FRONT LEFT LEG
-        [27, 23, 22, 27, 22, 26],
-        [26, 22, 4, 26, 4, 25],
-        [25, 4, 24, 25, 24, 28],
-        [28, 24, 23, 28, 23, 27],
+        [27, 23, 22, 27, 22, 26], // back side
+        [26, 22, 4, 26, 4, 25], // left side
+        [25, 4, 24, 25, 24, 28], // front side
+        [28, 24, 23, 28, 23, 27], // right side
 
         // FRONT RIGHT LEG
-        [33, 29, 30, 33, 30, 34],
-        [34, 30, 31, 34, 31, 35],
-        [35, 31, 7, 35, 7, 32],
-        [32, 7, 29, 32, 29, 33],
+        [33, 29, 30, 33, 30, 34], // back side
+        [34, 30, 31, 34, 31, 35], // left side
+        [35, 31, 7, 35, 7, 32], // front side
+        [32, 7, 29, 32, 29, 33], // right side
     ];
-
-    this.texIndexes = [0, 1, 2, 0, 2, 3];
 
     ///////////////////////////////////
     /*      GETTERS & SETTERS        */
@@ -430,7 +594,6 @@ function Table() {
 
     // GET THE NUMBER OF POSITIONS IN THE BUFFER THE SHAPE HAS
     this.getNumPositions = function() {
-        // console.log("numPositions: " + this.numPositions)
         return this.numPositions;
     }
 
@@ -440,74 +603,52 @@ function Table() {
 
     // INITIALIZATION FUNCTION
     this.init = function() {
+        // GET VERTEX POSITIONS AND TEXTURE COORDINATES 
         for (var i = 0; i < this.indexes.length; i++) {
             for (var j = 0; j < this.indexes[i].length; j++) {
-                this.positions.push(vertexesTable[this.indexes[i][j]]);
+                this.positions.push(this.vertexesTable[this.indexes[i][j]]);
                 this.texture.push(texCoord[this.texIndexes[j]]);
             }
         }
     }
 
+    // DRAW TABLE
     this.drawTable = function() {
+        // COPY POSITIONS, COLORS, TEXTURE COORDINATES, AND TEXTURE IDs TO BUFFER ARRAYS
         for (var i = 0; i < this.positions.length; i++) {
             vPositions.push(this.positions[i]);
             vColors.push(this.color);
             vTexCoords.push(this.texture[i]);
-            this.numPositions++;
 
-            let t = parseFloat(this.texID).toFixed(1);
+            this.numPositions++; // increment number of positions to match the position being added
+
+            // PUSH TEXTURE ID
+            let t = parseFloat(this.texID).toFixed(1); // make sure its float with one decimal
             vTexIDs.push(t);
         }
     }
 }
 
-var tvXMax = 2.5;
-var tvXMin = -2.5;
-var tvYMax = 2.5;
-var tvYMin = -1.0;
-var tvZMax = 0.5;
-var tvZMin = -2.5;
-
-var vcrSize = 0.5;
-var screenBorder = 0.3;
-
-var vertexesTV = [
-    // FRONT
-    vec4( tvXMin, tvYMin, tvZMax, 1.0), // 0
-    vec4( tvXMin, tvYMin + vcrSize, tvZMax, 1.0), // 1
-    vec4( tvXMin, tvYMax, tvZMax, 1.0), // 2
-    vec4( tvXMax, tvYMax, tvZMax, 1.0), // 3
-    vec4( tvXMax, tvYMin + vcrSize, tvZMax, 1.0), // 4
-    vec4( tvXMax, tvYMin, tvZMax, 1.0), // 5
-
-    // BACK
-    vec4( tvXMin, tvYMin, tvZMin, 1.0), // 6
-    vec4( tvXMin, tvYMin + vcrSize, tvZMin, 1.0), // 7
-    vec4( tvXMin, tvYMax - 2.0, tvZMin, 1.0), // 8
-    vec4( tvXMax, tvYMax - 2.0, tvZMin, 1.0), // 9
-    vec4( tvXMax, tvYMin + vcrSize, tvZMin, 1.0), // 10
-    vec4( tvXMax, tvYMin, tvZMin, 1.0), // 11
-
-    // SCREEN
-    vec4( tvXMin + screenBorder, tvYMin + vcrSize + screenBorder, tvZMax + 0.1, 1.0),  // 12
-    vec4( tvXMin + screenBorder, tvYMax - screenBorder, tvZMax + 0.1, 1.0),  // 13
-    vec4( tvXMax - screenBorder, tvYMax - screenBorder, tvZMax + 0.1, 1.0),  // 14
-    vec4( tvXMax - screenBorder, tvYMin + vcrSize + screenBorder, tvZMax + 0.1, 1.0),  // 15
-]
-
-function Buttons() {
+// CLASS TO DRAW TV BUTTONS AND VCR
+function ButtonsAndVCR() {
     ///////////////////////////////////
     /*     INSTANCE VARIABLES        */
     ///////////////////////////////////
     this.numPositions = 0; // number of vertices added to the vPositions
     this.positions = []; // temporary array to hold the vertices
-    this.colors = [];
-    this.color = vec4(0.161, 0.161, 0.161, 1.0); // FIXME: REMOVE?
+    this.colors = []; // temporary array to hold the vertex colors
+    this.color = vec4(0.161, 0.161, 0.161, 1.0); // holds button/vcr color (dark gray)
 
+    ///////////////////////////////////
+    /*      GETTERS & SETTERS        */
+    ///////////////////////////////////
+
+    // GET POSITION ARRAY
     this.getPositions = function() {
         return this.positions;
     }
 
+    // GET COLOR ARRAY
     this.getColors = function() {
         return this.colors;
     }
@@ -518,83 +659,132 @@ function Buttons() {
 
     // INITIALIZATION FUNCTION
     this.init = function() {
-        this.vcrTape();
+        // DRAW VCR SLOT
+        this.vcrSlot();
 
-        var t = translate(-8.0, -4.4, 0.0);
+        // DRAW 2 SQUARE BUTTONS
+        var t = translate(-8.0, -4.4, 0.0); // translation matrix -> move right and down
         this.squareButton(t);
         
-        t = translate(-10.5, -4.4, 0.0);
+        t = translate(-10.5, -4.4, 0.0); // translation matrix -> move right and down
         this.squareButton(t);
 
-        t = translate(-13.0, -4.4, 0.0);
-        this.squareButtonRed(t);
+        // DRAW POWER BUTTON
+        t = translate(-13.0, -4.4, 0.0); // translation matrix -> move right and down
+        this.powerButton(t);
 
     }
 
-    this.vcrTape = function() {
+    // FUNCTION TO DRAW VCRSLOT
+    this.vcrSlot = function() {
         for (var i = 0; i < generalVerticesSquare.length; i++) {
-            var t = translate(0.8, -4.7, 0.0);
-            var s = scale(1.2, 0.15, 1.0);
+            // DETERMINE TRANSFORMATION MATRIX
+            var t = translate(0.8, -4.7, 0.0); // move right and down
+            var s = scale(1.2, 0.15, 1.0); // scaling matrix -> stretch in x direction and shrink in y
             var r = rotate(0, 0, 1, 0); // rotation matrix -> nothing
             
             var m = determineTransformationMatrix(r, s, t);
+
+            // COPY POSITIONS AND TEXTURES TO ARRAYS
             var temp = mult(m, generalVerticesSquare[i]);
             this.positions.push(temp);
             this.colors.push(this.color);
         }
     }
 
+    // FUNCTION TO DRAW A SQUARE BUTTON
+    // t -> translation matrix
     this.squareButton = function(t) {
         for (var i = 0; i < generalVerticesSquare.length; i++) {
-            // var t = translate(0.8, -4.7, 0.0);
-            var s = scale(0.16, 0.16, 1.0);
+            // DETERMINE TRANSFORMATION MATRIX
+            var s = scale(0.16, 0.16, 1.0); // scaling matrix -> shrink in x and y direction
             var r = rotate(0, 0, 1, 0); // rotation matrix -> nothing
             
             var m = determineTransformationMatrix(r, s, t);
+
+            // COPY POSITIONS AND TEXTURES TO ARRAYS
             var temp = mult(m, generalVerticesSquare[i]);
             this.positions.push(temp);
             this.colors.push(this.color);
         }
     }
 
-    this.squareButtonRed = function(t) {
+    // FUNCTION TO DRAW POWER BUTTON
+    // t -> translation matrix
+    this.powerButton = function(t) {
         for (var i = 0; i < generalVerticesSquare.length; i++) {
-            // var t = translate(0.8, -4.7, 0.0);
-            var s = scale(0.16, 0.16, 1.0);
+            // DETERMINE TRANSFORMATION MATRIX
+            var s = scale(0.16, 0.16, 1.0); // scaling matrix -> shrink in x and y direction
             var r = rotate(0, 0, 1, 0); // rotation matrix -> nothing
             
             var m = determineTransformationMatrix(r, s, t);
+
+            // COPY POSITIONS AND TEXTURES TO ARRAYS
             var temp = mult(m, generalVerticesSquare[i]);
             this.positions.push(temp);
-            this.colors.push(vec4(0.5, 0.0, 0.0, 1.0));
+            this.colors.push(vec4(0.5, 0.0, 0.0, 1.0)); // dark red color
         }
     }
 }
 
+// CLASS TO DRAW TV
 function TV() {
     ///////////////////////////////////
     /*     INSTANCE VARIABLES        */
     ///////////////////////////////////
     this.numPositions = 0; // number of vertices added to the vPositions
-    this.positions = []; // temporary array to hold the vertices
-    this.colors = [];
-    this.colorTV = vec4(0.161, 0.161, 0.161, 1.0); // FIXME: REMOVE?
-    this.colorVCR = vec4(0.329, 0.329, 0.329, 1.0);
-    this.colorScreen = vec4(0.0, 0.0, 0.0, 1.0);
-    this.texture = [];
-    this.texID = -1.0;
-    this.texIndexes = [0, 1, 2, 0, 2, 3];
+    this.colorTV = vec4(0.161, 0.161, 0.161, 1.0); // TV color (dark gray)
+    this.colorVCR = vec4(0.329, 0.329, 0.329, 1.0); // VCR band color (light gray)
+    this.colorScreen = vec4(0.0, 0.0, 0.0, 1.0); // screen color (black)
 
-    this.tvBasePositions = [];
-    this.tvBaseColors = [];
+    // VERTEX MAXES AND MINS
+    this.tvXMax = 2.5;
+    this.tvXMin = -2.5;
+    this.tvYMax = 2.5;
+    this.tvYMin = -1.0;
+    this.tvZMax = 0.5;
+    this.tvZMin = -2.5;
+
+    this.vcrSize = 0.5; // height of vcr band
+    this.screenBorder = 0.3; // width of screen 
+
+    this.vertexesTV = [
+        // FRONT
+        vec4( this.tvXMin, this.tvYMin, this.tvZMax, 1.0), // 0
+        vec4( this.tvXMin, this.tvYMin + this.vcrSize, this.tvZMax, 1.0), // 1
+        vec4( this.tvXMin, this.tvYMax, this.tvZMax, 1.0), // 2
+        vec4( this.tvXMax, this.tvYMax, this.tvZMax, 1.0), // 3
+        vec4( this.tvXMax, this.tvYMin + this.vcrSize, this.tvZMax, 1.0), // 4
+        vec4( this.tvXMax, this.tvYMin, this.tvZMax, 1.0), // 5
+    
+        // BACK
+        vec4( this.tvXMin, this.tvYMin, this.tvZMin, 1.0), // 6
+        vec4( this.tvXMin, this.tvYMin + this.vcrSize, this.tvZMin, 1.0), // 7
+        vec4( this.tvXMin, this.tvYMax - 2.0, this.tvZMin, 1.0), // 8
+        vec4( this.tvXMax, this.tvYMax - 2.0, this.tvZMin, 1.0), // 9
+        vec4( this.tvXMax, this.tvYMin + this.vcrSize, this.tvZMin, 1.0), // 10
+        vec4( this.tvXMax, this.tvYMin, this.tvZMin, 1.0), // 11
+    
+        // SCREEN
+        vec4( this.tvXMin + this.screenBorder, this.tvYMin + this.vcrSize + this.screenBorder, this.tvZMax + 0.1, 1.0),  // 12
+        vec4( this.tvXMin + this.screenBorder, this.tvYMax - this.screenBorder, this.tvZMax + 0.1, 1.0),  // 13
+        vec4( this.tvXMax - this.screenBorder, this.tvYMax - this.screenBorder, this.tvZMax + 0.1, 1.0),  // 14
+        vec4( this.tvXMax - this.screenBorder, this.tvYMin + this.vcrSize + this.screenBorder, this.tvZMax + 0.1, 1.0),  // 15
+    ]
+
+    // POSITION ARRAYS
+    this.tvPositions = []; 
     this.blackScreenPositions = [];
+    this.startingDuelPositions = []; // frame 1
+    this.sabersHittingPositions = []; // frame 2
+    this.inLavaPositions = []; // frame 3
+
+    // COLORS ARRAYS
+    this.tvColors = [];
     this.blackScreenColors = [];
-    this.screen1Positions = [];
-    this.screen1Colors = [];
-    this.screen2Positions = [];
-    this.screen2Colors = [];
-    this.screen3Positions = [];
-    this.screen3Colors = [];
+    this.startingDuelColors = []; // frame 1
+    this.sabersHittingColors = []; // frame 2
+    this.inLavaColors = []; // frame 3
 
     this.vrcIndexes = [
         [6, 7, 10, 6, 10, 11], // back
@@ -630,258 +820,252 @@ function TV() {
 
     // INITIALIZATION FUNCTION
     this.init = function() {
+        // GET VERTEX POSITIONS AND TEXTURE COORDINATES FOR VCR BAND
         for (var i = 0; i < this.vrcIndexes.length; i++) {
             for (var j = 0; j < this.vrcIndexes[i].length; j++) {
-                this.tvBasePositions.push(vertexesTV[this.vrcIndexes[i][j]]);
-                this.tvBaseColors.push(this.colorVCR);
-                // this.texture.push(texCoord[this.texIndexes[j]]);
+                this.tvPositions.push(this.vertexesTV[this.vrcIndexes[i][j]]);
+                this.tvColors.push(this.colorVCR);
             }
         }
 
+        // GET VERTEX POSITIONS AND TEXTURE COORDINATES FOR TV
         for (var i = 0; i < this.tvBaseIndexes.length; i++) {
             for (var j = 0; j < this.tvBaseIndexes[i].length; j++) {
-                this.tvBasePositions.push(vertexesTV[this.tvBaseIndexes[i][j]]);
-                this.tvBaseColors.push(this.colorTV);
-                // this.texture.push(texCoord[this.texIndexes[j]]);
+                this.tvPositions.push(this.vertexesTV[this.tvBaseIndexes[i][j]]);
+                this.tvColors.push(this.colorTV);
             }
         }
 
+        // GET VERTEX POSITIONS AND TEXTURE COORDINATES FOR TV SCREENS
         this.initScreens();
 
-        var buttons = new Buttons();
-        buttons.init();
-        var btnsColors = buttons.getColors();
-        var btnsPositions = buttons.getPositions();
+        // GET VERTEX POSITIONS AND TEXTURE COORDINATES FOR BUTTONS AND VCR SLOT
+        var btns = new ButtonsAndVCR();
+        btns.init();
+        var btnsColors = btns.getColors();
+        var btnsPositions = btns.getPositions();
 
         for (var i = 0; i < btnsPositions.length; i++) {
-            this.tvBasePositions.push(btnsPositions[i]);
-            this.tvBaseColors.push(btnsColors[i]);
+            this.tvPositions.push(btnsPositions[i]);
+            this.tvColors.push(btnsColors[i]);
         }
         
     }
 
+    // INITIALIZE SCREENS FUNCTION 
     this.initScreens = function() {
         // BLACK SCREEN
         for (var i = 0; i < this.screenIndexes.length; i++) {
             for (var j = 0; j < this.screenIndexes[i].length; j++) {
-                this.blackScreenPositions.push(vertexesTV[this.screenIndexes[i][j]]);
+                this.blackScreenPositions.push(this.vertexesTV[this.screenIndexes[i][j]]);
                 this.blackScreenColors.push(this.colorScreen);
-                // this.texture.push(texCoord[this.texIndexes[j]]);
             }
         }
 
-        // SCREEN 1
-        var s1 = new Screen1();
-        s1.init();
-        this.screen1Colors = s1.getColors();
-        this.screen1Positions = s1.getPositions();
+        // SCREEN VERTEX MAXES AND MINS
+        var sXMax = this.tvXMax - this.screenBorder;
+        var sXMin = this.tvXMin + this.screenBorder;
+        var sYMax = this.tvYMax - this.screenBorder;
+        var sYMin = this.tvYMin + this.vcrSize + this.screenBorder;
+        var sZValue = this.tvZMax + 0.1;
 
-        var s2 = new Screen2();
-        s2.init();
-        this.screen2Colors = s2.getColors();
-        this.screen2Positions = s2.getPositions();
 
-        var s3 = new Screen3();
-        s3.init();
-        this.screen3Colors = s3.getColors();
-        this.screen3Positions = s3.getPositions();
+        // FRAME 1 -> STARTING DUEL
+        var startDuel = new DuelStart(sXMax, sXMin, sYMax, sYMin, sZValue);
+        startDuel.init();
+        this.startingDuelColors = startDuel.getColors();
+        this.startingDuelPositions = startDuel.getPositions();
+
+        // FRAME 2 -> LIGHTSABERS HITTING
+        var saberHit = new SabersHitting(sXMax, sXMin, sYMax, sYMin, sZValue);
+        saberHit.init();
+        this.sabersHittingColors = saberHit.getColors();
+        this.sabersHittingPositions = saberHit.getPositions();
+
+        // FRAME 3 -> ANAKIN IN THE LAVA
+        var inLava = new InLava(sXMax, sXMin, sYMax, sYMin, sZValue);
+        inLava.init();
+        this.inLavaColors = inLava.getColors();
+        this.inLavaPositions = inLava.getPositions();
 
     }
 
-    this.drawTV = function(screenType) {
-        for (var i = 0; i < this.tvBasePositions.length; i++) {
-            vPositions.push(this.tvBasePositions[i]);
-            vColors.push(this.tvBaseColors[i]);
-            // vTexCoords.push(this.texture[i]);
-            this.numPositions++;
+    // FUNCTION TO DRAW TV
+    // frameType -> which frame to display on screen
+    this.drawTV = function(frameType) {
+        // COPY POSITIONS, COLORS, AND TEXTURE IDs TO BUFFER ARRAYS
+        for (var i = 0; i < this.tvPositions.length; i++) {
+            vPositions.push(this.tvPositions[i]);
+            vColors.push(this.tvColors[i]);
 
-            let t = parseFloat(this.texID).toFixed(1);
+            this.numPositions++; // increment number of positions to match the position being added
+
+            // PUSH TEXTURE ID
+            let t = parseFloat(this.texID).toFixed(1);; // make sure its float with one decimal
             vTexIDs.push(t);
         }
 
-        this.drawScreens(screenType);
+        // DRAW CORRESPONDING SCREEN
+        this.drawScreen(frameType);
         
     }
 
-    this.drawScreens = function(screenType) {
-        if (screenType == "black") {
-            console.log("black");
+    // FUNCTION TO DRAW SCREEN
+    // frameType -> which frame to display on screen
+    this.drawScreen = function(frameType) {
+        // COPY POSITIONS, COLORS, TEXTURE COORDINATES, AND TEXTURE IDs TO BUFFER ARRAYS FOR SPECIFIC FRAME
+        if (frameType == "black") {
             for (var i = 0; i < this.blackScreenPositions.length; i++) {
                 vPositions.push(this.blackScreenPositions[i]);
                 vColors.push(this.blackScreenColors[i]);
-                this.numPositions++;
 
-                let t = parseFloat(this.texID).toFixed(1);
+                this.numPositions++; // increment number of positions to match the position being added
+
+                // PUSH TEXTURE ID
+                let t = parseFloat(this.texID).toFixed(1); // make sure its float with one decimal
                 vTexIDs.push(t);
             }
         }
-        else if (screenType == "s1") {
-            for (var i = 0; i < this.screen1Positions.length; i++) {
-                vPositions.push(this.screen1Positions[i]);
-                vColors.push(this.screen1Colors[i]);
-                this.numPositions++;
+        else if (frameType == "starting duel") {
+            for (var i = 0; i < this.startingDuelPositions.length; i++) {
+                vPositions.push(this.startingDuelPositions[i]);
+                vColors.push(this.startingDuelColors[i]);
+                
+                this.numPositions++; // increment number of positions to match the position being added
 
-                let t = parseFloat(this.texID).toFixed(1);
+                // PUSH TEXTURE ID
+                let t = parseFloat(this.texID).toFixed(1); // make sure its float with one decimal
                 vTexIDs.push(t);
             }
         }
-        else if (screenType == "s2") {
-            for (var i = 0; i < this.screen2Positions.length; i++) {
-                vPositions.push(this.screen2Positions[i]);
-                vColors.push(this.screen2Colors[i]);
-                this.numPositions++;
+        else if (frameType == "sabers hitting") {
+            for (var i = 0; i < this.sabersHittingPositions.length; i++) {
+                vPositions.push(this.sabersHittingPositions[i]);
+                vColors.push(this.sabersHittingColors[i]);
+                
+                this.numPositions++; // increment number of positions to match the position being added
 
-                let t = parseFloat(this.texID).toFixed(1);
+                // PUSH TEXTURE ID
+                let t = parseFloat(this.texID).toFixed(1); // make sure its float with one decimal
                 vTexIDs.push(t);
             }
         }
-        else if (screenType == "s3") {
-            for (var i = 0; i < this.screen3Positions.length; i++) {
-                vPositions.push(this.screen3Positions[i]);
-                vColors.push(this.screen3Colors[i]);
-                this.numPositions++;
+        else if (frameType == "anakin in lava") {
+            for (var i = 0; i < this.inLavaPositions.length; i++) {
+                vPositions.push(this.inLavaPositions[i]);
+                vColors.push(this.inLavaColors[i]);
 
-                let t = parseFloat(this.texID).toFixed(1);
+                this.numPositions++; // increment number of positions to match the position being added
+
+                // PUSH TEXTURE ID
+                let t = parseFloat(this.texID).toFixed(1); // make sure its float with one decimal
                 vTexIDs.push(t);
             }
         }
     }
 }
 
-var sXMax = tvXMax - screenBorder;
-var sXMin = tvXMin + screenBorder;
-var sYMax = tvYMax - screenBorder;
-var sYMin =  tvYMin + vcrSize + screenBorder;
-var sZMax = tvZMax + 0.1;
 
-var squareXMax = 1;
-var squareXMin = -1;
-// var squareXMin = sXMin + 1.1;
-// console.log("squareXMin: " + squareXMin);
-var squareYMax = 1;
-// var squareYMax = sYMax;
-// console.log("squareYMax: " + squareYMax);
-var squareYMin = -1;
-// var squareYMin = sYMin;
-// console.log("squareYMin: " + squareYMin);
-
-var xMax = 1;
-var xMin = -1;
-var yMax = 1;
-var yMin = -1;
-// var zMin = ;
-
-var generalVerticesSquare = [
-    vec4(xMin, yMin, sZMax, 1.0), // 
-    vec4(xMin, yMax, sZMax, 1.0), // 
-    vec4(xMax, yMax, sZMax, 1.0), // 
-
-    vec4(xMin, yMin, sZMax, 1.0), // 
-    vec4(xMax, yMax, sZMax, 1.0), // 
-    vec4(xMax, yMin, sZMax, 1.0), // 
-];
-
-var generalVerticesTriangle = [
-    vec4(xMin, yMin, sZMax, 1.0), // 0
-    vec4(xMax, yMin, sZMax, 1.0), // 1
-    vec4((xMin + xMax) / 2, yMax, sZMax, 1.0), //
-];
-
-var squareColor = vec4(0.0, 0.0, 0.0, 1.0);// 0.4, 0.451, 1.0, 1.0);
-var triangleColor = vec4(0.824, 0.706, 0.549, 1.0);// vec4(0.855, 0.753, 1.0, 1.0);
-
-
-
-function LavaAndGround() {
+// CLASS TO DRAW LAVA AND GROUND
+// sXMax -> screen max x
+// sXMin -> screen min x
+// sYMax -> screen max y
+// sYMin -> screen min y
+// sZValue -> screen z value
+function LavaAndGround(sXMax, sXMin, sYMax, sYMin, sZValue) {
     ///////////////////////////////////
     /*     INSTANCE VARIABLES        */
     ///////////////////////////////////
     this.numPositions = 0; // number of vertices added to the vPositions
-    this.positions = [];
-    this.colors = [];
+    this.positions = []; // temporary array to hold the vertices
+    this.colors = []; // temporary array to hold the vertex colors
     
-
     this.lavaAndGroundVertices = [
-        vec4( sXMin, sYMin, sZMax, 1.0), // 0
-        vec4( sXMin, sYMax, sZMax, 1.0), // 1
-        vec4( sXMax, sYMax, sZMax, 1.0), // 2
-        vec4( sXMax, sYMin, sZMax, 1.0), // 3
+        vec4( sXMin, sYMin, sZValue, 1.0), // 0
+        vec4( sXMin, sYMax, sZValue, 1.0), // 1
+        vec4( sXMax, sYMax, sZValue, 1.0), // 2
+        vec4( sXMax, sYMin, sZValue, 1.0), // 3
     
-        vec4( sXMin, (sYMin + sYMax) / 2, sZMax, 1.0), // 4
-        vec4( sXMax, (sYMin + sYMax) / 2, sZMax, 1.0), // 5
+        vec4( sXMin, (sYMin + sYMax) / 2, sZValue, 1.0), // 4
+        vec4( sXMax, (sYMin + sYMax) / 2, sZValue, 1.0), // 5
 
-        vec4((sXMin - sXMin) - 1.0, (sYMin + sYMax) / 2, sZMax, 1.0), // 6
-        vec4(sXMin - sXMin, sYMin, sZMax, 1.0), // 7
+        vec4((sXMin - sXMin) - 1.0, (sYMin + sYMax) / 2, sZValue, 1.0), // 6
+        vec4(sXMin - sXMin, sYMin, sZValue, 1.0), // 7
 
-        vec4((sXMin - sXMin) - 0.2, (sYMin + sYMax) / 2, sZMax, 1.0), // 8
-        vec4((sXMin - sXMin), sYMin, sZMax, 1.0), // 9
-        vec4(sXMin - (sXMin / 2), sYMin, sZMax, 1.0), // 10
+        vec4((sXMin - sXMin) - 0.2, (sYMin + sYMax) / 2, sZValue, 1.0), // 8
+        vec4((sXMin - sXMin), sYMin, sZValue, 1.0), // 9
+        vec4(sXMin - (sXMin / 2), sYMin, sZValue, 1.0), // 10
     ];
 
-    // this.lavaColor = vec4(0.612, 0.878, 1.0, 1.0);
-    this.lavaColorLight = vec4(0.918, 0.361, 0.059, 1.0);
-    this.lavaColorDark = vec4(0.788, 0.173, 0.0, 1.0);
-    // this.groundColor = vec4(0.71, 1, 0.51, 1.0);
-    this.groundColor = vec4(0.141, 0.078, 0.031, 1.0);//0.11, 0.11, 0.11, 1.0);
+    // COLORS
+    this.lavaColorLight = vec4(0.918, 0.361, 0.059, 1.0); // brighter orange
+    this.lavaColorDark = vec4(0.788, 0.173, 0.0, 1.0); // darker orange/red
+    this.groundColor = vec4(0.141, 0.078, 0.031, 1.0); // dark brown
     
-    this.lavaIndexes1 = [
+    this.lavaColors = [ // vertex colors
+        this.lavaColorDark,
+        this.lavaColorLight,
+        this.lavaColorLight,
+        this.lavaColorLight,
+        this.lavaColorDark,
+        this.lavaColorDark,
+        this.lavaColorDark,
+        this.lavaColorDark,
+        this.lavaColorDark,
+        this.lavaColorDark,
+        this.lavaColorDark,
+    ];
+
+    this.lavaIndexes1 = [ // holds first variation of lava vertices
         [0, 4, 5],
-        // [4, 1, 5],
         [1, 4, 5],
         [1, 2, 5],
     ];
 
-    this.lavaColors = [
-        this.lavaColorDark,
-        this.lavaColorLight,
-        this.lavaColorLight,
-        this.lavaColorLight,
-        this.lavaColorDark,
-        this.lavaColorDark,
-        this.lavaColorDark,
-        this.lavaColorDark,
-        this.lavaColorDark,
-        this.lavaColorDark,
-        this.lavaColorDark,
-    ];
-
-    this.lavaIndexes2 = [
+    this.lavaIndexes2 = [ // holds second variation of lava vertices
         [8, 0, 9],
         [8, 4, 0],
         [4, 1, 2],
         [4, 2, 5],
     ];
 
-    this.groundIndexes1 = [
+    this.groundIndexes1 = [ // holds first variation of ground vertices
         [0, 6, 7],
         [7, 6, 5],
         [7, 5, 3],
     ];
 
-    this.groundIndexes2 = [
+    this.groundIndexes2 = [ // holds second variation of ground vertices
         [10, 8, 9],
         [9, 8, 5],
         [9, 5, 3],
     ];
     
-    
+    ///////////////////////////////////
+    /*      GETTERS & SETTERS        */
+    ///////////////////////////////////
 
-    // GET THE NUMBER OF POSITIONS IN THE BUFFER THE SHAPE HAS
-    this.getNumPositions = function() {
-        return this.numPositions;
-    }
-
+    // GET POSITIONS ARRAY
     this.getPositions = function() {
         return this.positions;
     }
 
+    // GET COLOR ARRAY
     this.getColors = function() {
         return this.colors;
     }
 
-    this.init = function(groundP) {
-        // GROUND
-        if (groundP) {
+    ///////////////////////////////////
+    /*       OTHER FUNCTIONS         */
+    ///////////////////////////////////
+
+    // INITIALIZATION FUNCTION
+    // basicGroundSetup -> whether basic ground or not (true/false)
+    this.init = function(basicGroundSetup) {
+        // DETERMINE GROUND AND LAVA SETUP
+        if (basicGroundSetup) {
+            // GROUND
+            // GET VERTEX POSITIONS AND TEXTURE COORDINATES 
             for (var i = 0; i < this.groundIndexes1.length; i++) {
                 for (var j = 0; j < this.groundIndexes1[i].length; j++) {
                     this.positions.push(this.lavaAndGroundVertices[this.groundIndexes1[i][j]]);
@@ -891,6 +1075,7 @@ function LavaAndGround() {
 
 
             // LAVA
+            // GET VERTEX POSITIONS AND TEXTURE COORDINATES 
             for (var i = 0; i < this.lavaIndexes1.length; i++) {
                 for (var j = 0; j < this.lavaIndexes1[i].length; j++) {
                     this.positions.push(this.lavaAndGroundVertices[this.lavaIndexes1[i][j]]);
@@ -902,6 +1087,8 @@ function LavaAndGround() {
             
         }
         else {
+            // GROUND
+            // GET VERTEX POSITIONS AND TEXTURE COORDINATES 
             for (var i = 0; i < this.groundIndexes2.length; i++) {
                 for (var j = 0; j < this.groundIndexes2[i].length; j++) {
                     this.positions.push(this.lavaAndGroundVertices[this.groundIndexes2[i][j]]);
@@ -910,211 +1097,125 @@ function LavaAndGround() {
             }
 
             // LAVA
+            // GET VERTEX POSITIONS AND TEXTURE COORDINATES 
             for (var i = 0; i < this.lavaIndexes2.length; i++) {
                 for (var j = 0; j < this.lavaIndexes2[i].length; j++) {
                     this.positions.push(this.lavaAndGroundVertices[this.lavaIndexes2[i][j]]);
                     this.colors.push(this.lavaColors[this.lavaIndexes2[i][j]]);
                 }
             }
-            
-        }
-
-        // var t = translate(-6.0, 10.0, 0.1);
-        // var r = rotate(-5, 0, 0, 1);
-        // var c = vec4(0.788, 0.173, 0.0, 1.0);
-        // this.lava(t, r, c);
-    }
-
-    this.lava = function(t, r, color) {
-        for (var i = 0; i < generalVerticesSquare.length; i++) {
-            // var t = translate(0.8, -4.7, 0.0);
-            var s = scale(0.26, 0.2, 1.0);
-            // var r = rotate(0, 0, 1, 0); // rotation matrix -> nothing
-            
-            var m = determineTransformationMatrix(r, s, t);
-            var temp = mult(m, generalVerticesSquare[i]);
-            this.positions.push(temp);
-            this.colors.push(color);
         }
     }
+
 }
 
+
+// CLASS TO DRAW A LIGHTSABER
+// bladeColor -> holds lightsaber color (vec4)
 function Lightsaber(bladeColor) {
-    this.lightsaberHandleColor = vec4(0.769,0.769,0.769, 1.0);
-    this.bladeColor = bladeColor;
-    this.positions = [];
-    this.colors = [];
+    ///////////////////////////////////
+    /*     INSTANCE VARIABLES        */
+    ///////////////////////////////////
+    this.lightsaberColor = vec4(0.769,0.769,0.769, 1.0); // holds handle color (light gray)
+    this.bladeColor = bladeColor; // holds lightsaber blade color
+    this.positions = []; // temporary array to hold the vertices
+    this.colors = []; // temporary array to hold the vertex colors
 
-    this.p = [];
+    this.p = []; // temporary array to hold saber before transformation
 
+    ///////////////////////////////////
+    /*      GETTERS & SETTERS        */
+    ///////////////////////////////////
+
+    // GET POSITIONS ARRAY
     this.getPositions = function() {
         return this.positions;
     }
 
+    // GET POSITIONS COLOR
     this.getColors = function() {
-        // console.log(this.colors);
         return this.colors;
     }
 
+    ///////////////////////////////////
+    /*       OTHER FUNCTIONS         */
+    ///////////////////////////////////
+
+    // INITIALIZATION FUNCTION
     this.init = function() {
-        // for (var i = 0; i < generalVerticesTriangle.length; i++) {
-        //     var t = translate(0, 10.0, 0.1);
-        //     var s = scale(0.2, 0.2, 1);
-        //     var r = rotate(0, 0, 1, 0); // rotation matrix -> nothing
-            
-        //     var m = determineTransformationMatrix(r, s, t);
-        //     var temp = mult(m, generalVerticesTriangle[i]);
-        //     this.p.push(temp);
-        //     this.colors.push(this.lightsaberHandleColor);
-
-        // }
-
+        // GET VERTEX POSITIONS AND TEXTURE COORDINATES FOR BLADE
         for (var i = 0; i < generalVerticesSquare.length; i++) {
-            var t = translate(0, 2.0, 0.02);
-            var s = scale(0.2, 0.6, 1);
+            // DETERMINE TRANSFORMATION MATRIX
+            var t = translate(0, 2.0, 0.02); // translation matrix -> move up and slightly away from camera
+            var s = scale(0.2, 0.6, 1); // scaling matrix -> shrink in x and y direction
             var r = rotate(0, 0, 1, 0); // rotation matrix -> nothing
             
             var m = determineTransformationMatrix(r, s, t);
+            
+            // PUSH TO TEMP ARRAYS
             var temp = mult(m, generalVerticesSquare[i]);
             this.p.push(temp);
             this.colors.push(this.bladeColor );
         }
 
+        // GET VERTEX POSITIONS AND TEXTURE COORDINATES FOR HANDLE
         for (var i = 0; i < generalVerticesSquare.length; i++) {
-            var t = translate(0, 0.7, 0.1);
-            var s = scale(0.2, 0.4, 1);
+            // DETERMINE TRANSFORMATION MATRIX
+            var t = translate(0, 0.7, 0.1); // translation matrix -> move up and slightly away from camera
+            var s = scale(0.2, 0.4, 1); // scaling matrix -> shrink in x and y direction
             var r = rotate(0, 0, 1, 0); // rotation matrix -> nothing
             
             var m = determineTransformationMatrix(r, s, t);
+            
+            // PUSH TO TEMP ARRAYS
             var temp = mult(m, generalVerticesSquare[i]);
             this.p.push(temp);
-            this.colors.push(this.lightsaberHandleColor);
+            this.colors.push(this.lightsaberColor);
         }
 
-        // for (var i = 0; i < generalVerticesSquare.length; i++) {
-        //     var t = translate(0, 2.0, 0.1);
-        //     var s = scale(0.2, 0.2, 1);
-        //     var r = rotate(0, 0, 1, 0); // rotation matrix -> nothing
-            
-        //     var m = determineTransformationMatrix(r, s, t);
-        //     var temp = mult(m, generalVerticesSquare[i]);
-        //     this.p.push(temp);
-        //     this.colors.push(this.lightsaberHandleColor);
-        // }
     }
 
-    this.drawSword = function(t, r) {
-        // console.log(t)
+    // FUNCTION TO DRAW LIGHTSABER
+    // t -> translation matrix
+    // r -> rotation matrix
+    this.drawLightsaber = function(t, r) {
         for (var i = 0; i < this.p.length; i++) {
-            // console.log(r)
+            // DETERMINE TRANSFORMATION MATRIX
             var s = scale(0.5, 0.5, 1); // scaling matrix -> increase in size by half
             var m = determineTransformationMatrix(r, s, t);
 
+            // PUSH TO POSITION ARRAY
             var temp = mult(m, this.p[i]);
             this.positions.push(temp);
         }
     }
 }
 
-function determineTransformationMatrix(r, s, t) {
-    // SET UP VARIABLES
-    var m = mat4(); // identity matrix that will be the translation matrix
-
-    // DETERMINE TRANSFORMATION MATRIX
-    m = mult(m, r); 
-    m = mult(m, s);
-    m = mult(m, t);
-
-    return m; // return calculated matrix
-} 
-
-function drawSquare(positions, colors, diffTranslation, rotateS, burning) {
-    var t = translate(-2.5, 2.0, 0.1); // translation matrix -> 
-    var r = rotate(0, 0, 0, 1); // rotation matrix -> 
-    var s = scale(0.5, 0.5, 1); // scaling matrix -> 
-
-    if (diffTranslation != false ) {
-        t = diffTranslation;
-    } 
-
-    if (rotateS) {
-        r = rotate(-10, 0, 0, 1);
-    }
-
-    var burn = [
-        vec4(0.788, 0.173, 0.0, 1.0),
-        squareColor,
-        squareColor,
-        vec4(0.788, 0.173, 0.0, 1.0),
-        squareColor,
-        squareColor,
-    ]
-
-    var m = determineTransformationMatrix(r, s, t);
-
-    for (var j = 0; j < generalVerticesSquare.length; j++) {
-        var temp = mult(m, generalVerticesSquare[j]);
-        positions.push(temp);
-        if (burning) {
-            colors.push(burn[j]);
-        }
-        else {
-            colors.push(squareColor);
-        }
-        
-    }
-}
-
-
-
-function drawTriangle(positions, colors, diffTranslation) {
-    var t = translate(1.2, 2.0, 0.1);
-    var r = rotate(0, 0, 1, 0);
-    var s = scale(0.5, 0.5, 1);
-
-    if (diffTranslation != false ) {
-        t = diffTranslation;
-    }
-    var m = determineTransformationMatrix(r, s, t);
-
-    for (var i = 0; i < generalVerticesTriangle.length; i++) {
-        var temp = mult(m, generalVerticesTriangle[i]);
-        positions.push(temp);
-        colors.push(triangleColor);
-    }
-}
-
-
-// var squareBladeColor = vec4(0.91, 1.0, 0.576, 1.0);
-// var triangleBladeColor = vec4(1.0, 0.824, 0.949, 1.0);
-
-var squareBladeColor = vec4(1.0, 0.0, 0.0, 1.0);
-var triangleBladeColor = vec4(0.0, 0.0, 1.0, 1.0);
-
-function Screen1() {
+// CLASS TO DRAW STARTING DUEL FRAME
+// sXMax -> screen max x
+// sXMin -> screen min x
+// sYMax -> screen max y
+// sYMin -> screen min y
+// sZValue -> screen z value
+function DuelStart(sXMax, sXMin, sYMax, sYMin, sZValue) {
     ///////////////////////////////////
     /*     INSTANCE VARIABLES        */
     ///////////////////////////////////
     this.numPositions = 0; // number of vertices added to the vPositions
-    this.positions = [];
-    this.colors = [];
-    this.sg = new LavaAndGround();
+    this.positions = []; // temporary array to hold the vertices
+    this.colors = []; // temporary array to hold the vertex colors
+    this.lavaAndGround = new LavaAndGround(sXMax, sXMin, sYMax, sYMin, sZValue);
     
     ///////////////////////////////////
     /*      GETTERS & SETTERS        */
     ///////////////////////////////////
 
-    // GET THE NUMBER OF POSITIONS IN THE BUFFER THE SHAPE HAS
-    // this.getNumPositions = function() {
-    //     return this.numPositions;
-    // }
-
+    // GET POSITIONS ARRAY
     this.getPositions = function() {
-        // console.log("s1 positions");
-        // console.log(this.positions)
         return this.positions;
     }
 
+    // GET POSITIONS COLOR
     this.getColors = function() {
         return this.colors;
     }
@@ -1125,91 +1226,81 @@ function Screen1() {
 
     // INITIALIZATION FUNCTION
     this.init = function() {
-        this.sg.init(true);
-        var sgPositions = this.sg.getPositions();
-        var sgColors = this.sg.getColors();
+        // DRAW BACKGROUND
+        this.lavaAndGround.init(true); // initialize lava and ground as basic 
+        var lavaAndGroundPositions = this.lavaAndGround.getPositions();
+        var lavaAndGroundColors = this.lavaAndGround.getColors();
 
-        for (var j = 0; j < sgPositions.length; j++) {
-            this.positions.push(sgPositions[j]);
-            this.colors.push(sgColors[j]);
+        for (var j = 0; j < lavaAndGroundPositions.length; j++) {
+            this.positions.push(lavaAndGroundPositions[j]);
+            this.colors.push(lavaAndGroundColors[j]);
         }
 
+        // DRAW SQUARAKIN
         drawSquare(this.positions, this.colors, translate(-0.5, 2.0, 0.1), false, false);
         
-        // this.drawSword();
+        // DRAW ANAKIN'S LIGHTSABER
         var anakinSaber = new Lightsaber(squareBladeColor);
         anakinSaber.init();
 
         var saberTranslate = translate(0.0, 2.0, 0.1);
         var saberRotate = rotate(10, 0, 0, 1);
 
-        anakinSaber.drawSword(saberTranslate, saberRotate);
-        var lightsaberHandleColor = anakinSaber.getColors();
+        anakinSaber.drawLightsaber(saberTranslate, saberRotate);
+        var lightsaberColor = anakinSaber.getColors();
         var swordPosition = anakinSaber.getPositions();
         
         for (var i = 0; i < swordPosition.length; i++) {
             this.positions.push(swordPosition[i]);
-            this.colors.push(lightsaberHandleColor[i]);
+            this.colors.push(lightsaberColor[i]);
         }
 
-        var swordTriangle = new Lightsaber(triangleBladeColor);
-        swordTriangle.init();
+        // DRAW TRIANGOBI 
+        drawTriangle(this.positions, this.colors, translate(2.5, 2.0, 0.1));
+
+        // DRAW OBI WAN'S LIGHTSABER
+        var obiwanSaber = new Lightsaber(triangleBladeColor);
+        obiwanSaber.init();
 
         saberTranslate = translate(2.5, 1.5, 0.1);
         saberRotate = rotate(-10, 0, 0, 1);
 
-        swordTriangle.drawSword(saberTranslate, saberRotate);
-        lightsaberHandleColor = swordTriangle.getColors();
-        swordPosition = swordTriangle.getPositions();
+        obiwanSaber.drawLightsaber(saberTranslate, saberRotate);
+        lightsaberColor = obiwanSaber.getColors();
+        swordPosition = obiwanSaber.getPositions();
         
         for (var i = 0; i < swordPosition.length; i++) {
             this.positions.push(swordPosition[i]);
-            this.colors.push(lightsaberHandleColor[i]);
+            this.colors.push(lightsaberColor[i]);
         }
-
-        // triangle
-        drawTriangle(this.positions, this.colors, translate(2.5, 2.0, 0.1));
-
-    }
-
-
-    determineTransformationMatrix = function(r, s, t) {
-        // SET UP VARIABLES
-        var m = mat4(); // identity matrix that will be the translation matrix
-
-        // DETERMINE TRANSFORMATION MATRIX
-        m = mult(m, r); 
-        m = mult(m, s);
-        m = mult(m, t);
-
-        return m; // return calculated matrix
     }
 }
 
-function Screen2() {
+// CLASS TO DRAW LIGHTSABER'S HITTING FRAME
+// sXMax -> screen max x
+// sXMin -> screen min x
+// sYMax -> screen max y
+// sYMin -> screen min y
+// sZValue -> screen z value
+function SabersHitting(sXMax, sXMin, sYMax, sYMin, sZValue) {
     ///////////////////////////////////
     /*     INSTANCE VARIABLES        */
     ///////////////////////////////////
     this.numPositions = 0; // number of vertices added to the vPositions
-    this.positions = [];
-    this.colors = [];
-    this.sg = new LavaAndGround();
+    this.positions = []; // temporary array to hold the vertices
+    this.colors = []; // temporary array to hold the vertex colors
+    this.lavaAndGround = new LavaAndGround(sXMax, sXMin, sYMax, sYMin, sZValue);
     
     ///////////////////////////////////
     /*      GETTERS & SETTERS        */
     ///////////////////////////////////
 
-    // GET THE NUMBER OF POSITIONS IN THE BUFFER THE SHAPE HAS
-    // this.getNumPositions = function() {
-    //     return this.numPositions;
-    // }
-
+    // GET POSITIONS ARRAY
     this.getPositions = function() {
-        // console.log("s1 positions");
-        // console.log(this.positions)
         return this.positions;
     }
 
+    // GET POSITIONS COLOR
     this.getColors = function() {
         return this.colors;
     }
@@ -1220,91 +1311,81 @@ function Screen2() {
 
     // INITIALIZATION FUNCTION
     this.init = function() {
-        this.sg.init(true);
-        var sgPositions = this.sg.getPositions();
-        var sgColors = this.sg.getColors();
+        // DRAW BACKGROUND
+        this.lavaAndGround.init(true); // initialize lava and ground as basic 
+        var lavaAndGroundPositions = this.lavaAndGround.getPositions();
+        var lavaAndGroundColors = this.lavaAndGround.getColors();
         
-        for (var j = 0; j < sgPositions.length; j++) {
-            this.positions.push(sgPositions[j]);
-            this.colors.push(sgColors[j]);
+        for (var j = 0; j < lavaAndGroundPositions.length; j++) {
+            this.positions.push(lavaAndGroundPositions[j]);
+            this.colors.push(lavaAndGroundColors[j]);
         }
 
+        // DRAW SQUARAKIN
         drawSquare(this.positions, this.colors, translate(-1.5, 2.0, 0.1), false, false);
         
-        // this.drawSword();
+        // DRAW ANAKIN'S LIGHTSABER
         var anakinSaber = new Lightsaber(squareBladeColor);
         anakinSaber.init();
 
         var saberTranslate = translate(-2.0, 1.0, 0.1);
         var saberRotate = rotate(40, 0, 0, 1);
 
-        anakinSaber.drawSword(saberTranslate, saberRotate);
-        var lightsaberHandleColor = anakinSaber.getColors();
+        anakinSaber.drawLightsaber(saberTranslate, saberRotate);
+        var lightsaberColor = anakinSaber.getColors();
         var swordPosition = anakinSaber.getPositions();
         
         for (var i = 0; i < swordPosition.length; i++) {
             this.positions.push(swordPosition[i]);
-            this.colors.push(lightsaberHandleColor[i]);
+            this.colors.push(lightsaberColor[i]);
         }
 
-        var swordTriangle = new Lightsaber(triangleBladeColor);
-        swordTriangle.init();
+        // DRAW TRIANGOBI
+        drawTriangle(this.positions, this.colors, false);
+
+        // DRAW OBI WAN'S LIGHTSABER
+        var obiwanSaber = new Lightsaber(triangleBladeColor);
+        obiwanSaber.init();
 
         saberTranslate = translate(1.5, 1.2, 0.1);
         saberRotate = rotate(-25, 0, 0, 1);
 
-        swordTriangle.drawSword(saberTranslate, saberRotate);
-        lightsaberHandleColor = swordTriangle.getColors();
-        swordPosition = swordTriangle.getPositions();
+        obiwanSaber.drawLightsaber(saberTranslate, saberRotate);
+        lightsaberColor = obiwanSaber.getColors();
+        swordPosition = obiwanSaber.getPositions();
         
         for (var i = 0; i < swordPosition.length; i++) {
             this.positions.push(swordPosition[i]);
-            this.colors.push(lightsaberHandleColor[i]);
+            this.colors.push(lightsaberColor[i]);
         }
-
-        // triangle
-        drawTriangle(this.positions, this.colors, false);
-
-    }
-
-
-    determineTransformationMatrix = function(r, s, t) {
-        // SET UP VARIABLES
-        var m = mat4(); // identity matrix that will be the translation matrix
-
-        // DETERMINE TRANSFORMATION MATRIX
-        m = mult(m, r); 
-        m = mult(m, s);
-        m = mult(m, t);
-
-        return m; // return calculated matrix
     }
 }
 
-function Screen3() {
+// DRAW ANAKIN IN THE LAVA
+// sXMax -> screen max x
+// sXMin -> screen min x
+// sYMax -> screen max y
+// sYMin -> screen min y
+// sZValue -> screen z value
+function InLava(sXMax, sXMin, sYMax, sYMin, sZValue) {
     ///////////////////////////////////
     /*     INSTANCE VARIABLES        */
     ///////////////////////////////////
     this.numPositions = 0; // number of vertices added to the vPositions
-    this.positions = [];
-    this.colors = [];
-    this.sg = new LavaAndGround();
+    this.positions = []; // temporary array to hold the vertices
+    this.colors = []; // temporary array to hold the vertex colors
+    this.lavaAndGround = new LavaAndGround(sXMax, sXMin, sYMax, sYMin, sZValue);
     
     ///////////////////////////////////
     /*      GETTERS & SETTERS        */
     ///////////////////////////////////
 
-    // GET THE NUMBER OF POSITIONS IN THE BUFFER THE SHAPE HAS
-    // this.getNumPositions = function() {
-    //     return this.numPositions;
-    // }
-
+    // GET POSITIONS ARRAY
     this.getPositions = function() {
-        // console.log("s1 positions");
-        // console.log(this.positions)
         return this.positions;
     }
 
+    // GET POSITIONS COLOR
     this.getColors = function() {
         return this.colors;
     }
@@ -1315,64 +1396,52 @@ function Screen3() {
 
     // INITIALIZATION FUNCTION
     this.init = function() {
-        this.sg.init(false);
-        var sgPositions = this.sg.getPositions();
-        var sgColors = this.sg.getColors();
+        // DRAW BACKGROUND
+        this.lavaAndGround.init(false); // initialize lava and ground as other layout
+        var lavaAndGroundPositions = this.lavaAndGround.getPositions();
+        var lavaAndGroundColors = this.lavaAndGround.getColors();
 
-        for (var j = 0; j < sgPositions.length; j++) {
-            this.positions.push(sgPositions[j]);
-            this.colors.push(sgColors[j]);
+        for (var j = 0; j < lavaAndGroundPositions.length; j++) {
+            this.positions.push(lavaAndGroundPositions[j]);
+            this.colors.push(lavaAndGroundColors[j]);
         }
 
+        // DRAW SQUARAKIN
         drawSquare(this.positions, this.colors, false, true, true);
         
-        // this.drawSword();
+        // DRAW ANAKIN'S LIGHTSABER
         var lightsaber = new Lightsaber(squareBladeColor);
         lightsaber.init();
 
         var saberTranslate = translate(-2.0, 1.5, 0.1);
         var saberRotate = rotate(10, 0, 0, 1);
 
-        lightsaber.drawSword(saberTranslate, saberRotate);
-        var lightsaberHandleColor = lightsaber.getColors();
+        lightsaber.drawLightsaber(saberTranslate, saberRotate);
+        var lightsaberColor = lightsaber.getColors();
         var swordPosition = lightsaber.getPositions();
         
         for (var i = 0; i < swordPosition.length; i++) {
             this.positions.push(swordPosition[i]);
-            this.colors.push(lightsaberHandleColor[i]);
+            this.colors.push(lightsaberColor[i]);
         }
 
-        var swordTriangle = new Lightsaber(triangleBladeColor);
-        swordTriangle.init();
+        // DRAW TRIANGOBI
+        drawTriangle(this.positions, this.colors, false);
+
+        var obiwanSaber = new Lightsaber(triangleBladeColor);
+        obiwanSaber.init();
 
         saberTranslate = translate(1.5, 1.2, 0.1);
         saberRotate = rotate(-25, 0, 0, 1);
 
-        swordTriangle.drawSword(saberTranslate, saberRotate);
-        lightsaberHandleColor = swordTriangle.getColors();
-        swordPosition = swordTriangle.getPositions();
+        obiwanSaber.drawLightsaber(saberTranslate, saberRotate);
+        lightsaberColor = obiwanSaber.getColors();
+        swordPosition = obiwanSaber.getPositions();
 
         for (var i = 0; i < swordPosition.length; i++) {
             this.positions.push(swordPosition[i]);
-            this.colors.push(lightsaberHandleColor[i]);
+            this.colors.push(lightsaberColor[i]);
         }
-
-        // triangle
-        drawTriangle(this.positions, this.colors, false);
-
-    }
-
-
-    determineTransformationMatrix = function(r, s, t) {
-        // SET UP VARIABLES
-        var m = mat4(); // identity matrix that will be the translation matrix
-
-        // DETERMINE TRANSFORMATION MATRIX
-        m = mult(m, r); 
-        m = mult(m, s);
-        m = mult(m, t);
-
-        return m; // return calculated matrix
     }
 }
 
@@ -1425,7 +1494,7 @@ window.onload = function initialize() {
         if (!powerOn) {
             // UPDATE CORRESPONDING VARIABLES
             powerOn = true; // power is on
-            screenIndex = 1; // move screen to first frame
+            play = true; // start show
 
             // REDRAW AND RERENDER 
             reDrawScreen();
@@ -1438,6 +1507,7 @@ window.onload = function initialize() {
         if (powerOn) {
             // UPDATE CORRESPONDING VARIABLES
             powerOn = false; // power is off
+            play = false;
             screenIndex = 0; // return to black screen
 
             // REDRAW AND RERENDER 
