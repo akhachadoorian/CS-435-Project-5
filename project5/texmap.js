@@ -2,8 +2,9 @@
     CS 435
     Project 5
     Alex Khachadoorian
-    FIXME: description
-    py -m http.server
+    This project outputs a room that consists of 3 brick walls and a carpeted floor and within the room is a wood table with a tv on it.
+    There is a menu on the right to turn the tv on and off, pause and play the show, and move the show onto the next or previous frame.
+    There is also a menu to change the viewer position to see different aspects of the room better.
 */
 
 "use strict"
